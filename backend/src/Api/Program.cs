@@ -2,7 +2,10 @@ using System.Text;
 using AssignmentSubmissionSystem.Api.Middleware;
 using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Auth;
+using AssignmentSubmissionSystem.Application.Classes;
 using AssignmentSubmissionSystem.Application.Options;
+using AssignmentSubmissionSystem.Application.Subjects;
+using AssignmentSubmissionSystem.Application.Users;
 using AssignmentSubmissionSystem.Infrastructure.Persistence;
 using AssignmentSubmissionSystem.Infrastructure.Persistence.Repositories;
 using AssignmentSubmissionSystem.Infrastructure.Security;
@@ -64,6 +67,14 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+// ---- Admin domain (users, classes, subjects) ----
+builder.Services.AddScoped<IClassRepository, ClassRepository>();
+builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IClassService, ClassService>();
+builder.Services.AddScoped<ISubjectService, SubjectService>();
+
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 
 // ---- CORS (frontend dev origin) ----

@@ -14,6 +14,8 @@ public abstract class AppException : Exception
     public int StatusCode { get; }
 }
 
+public sealed class BadRequestAppException(string message) : AppException(message, 400);
+
 public sealed class UnauthorizedAppException(string message) : AppException(message, 401);
 
 public sealed class ForbiddenAppException(string message) : AppException(message, 403);
