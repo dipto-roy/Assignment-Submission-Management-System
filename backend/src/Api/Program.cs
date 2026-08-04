@@ -1,6 +1,12 @@
 using System.Text;
+using AssignmentSubmissionSystem.Api.Middleware;
+using AssignmentSubmissionSystem.Application.Abstractions;
+using AssignmentSubmissionSystem.Application.Auth;
 using AssignmentSubmissionSystem.Application.Options;
 using AssignmentSubmissionSystem.Infrastructure.Persistence;
+using AssignmentSubmissionSystem.Infrastructure.Persistence.Repositories;
+using AssignmentSubmissionSystem.Infrastructure.Security;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -53,6 +59,13 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// ---- Auth feature (repository, password hashing, token issuance) ----
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+builder.Services.AddScoped<ITokenService, JwtTokenService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
+
 // ---- CORS (frontend dev origin) ----
 const string frontendCorsPolicy = "FrontendCors";
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
@@ -103,7 +116,8 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DbSeeder.SeedAsync(db);
+    var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+    await DbSeeder.SeedAsync(db, passwordHasher);
 }
 
 // ---- Pipeline ----
@@ -113,7 +127,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Serilog wraps the exception middleware so it logs the *final* status code
+// (401/404/etc.) instead of the raw 500 it would see if an exception passed through it unhandled.
 app.UseSerilogRequestLogging();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors(frontendCorsPolicy);
 app.UseAuthentication();
