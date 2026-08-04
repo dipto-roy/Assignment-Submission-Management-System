@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "DQO7K2U4nY0Z1Nn955NChFeNVaMtIVkdpOMyyGYz53EcKBXFTlbph2L5Xt0Sx6XsK14qLggMlzmLFpjAgk4Vqg==",
+  "success": true,
+  "projectFilePath": "/home/dip-roy/Documents/Assignment & Submission Management System/backend/src/Application/AssignmentSubmissionSystem.Application.csproj",
+  "expectedPackageFiles": [
+    "/home/dip-roy/.nuget/packages/bcrypt.net-next/4.2.0/bcrypt.net-next.4.2.0.nupkg.sha512",
+    "/home/dip-roy/.nuget/packages/fluentvalidation/12.1.1/fluentvalidation.12.1.1.nupkg.sha512",
+    "/home/dip-roy/.nuget/packages/fluentvalidation.dependencyinjectionextensions/12.1.1/fluentvalidation.dependencyinjectionextensions.12.1.1.nupkg.sha512",
+    "/home/dip-roy/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/2.1.0/microsoft.extensions.dependencyinjection.abstractions.2.1.0.nupkg.sha512"
+  ],
+  "logs": []
+}
