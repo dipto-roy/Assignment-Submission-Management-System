@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: assignment_submission_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-assignment_submission_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_dev_only}
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: assignment_submission_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-assignment_submission_dev};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres_dev_only}
+      Jwt__Key: ${Jwt__Key:?Jwt__Key must be set}
+      Jwt__Issuer: ${Jwt__Issuer:-AssignmentSubmissionSystem}
+      Jwt__Audience: ${Jwt__Audience:-AssignmentSubmissionSystem.Client}
+      Jwt__ExpiryMinutes: ${Jwt__ExpiryMinutes:-60}
+    ports:
+      - "${API_PORT:-5000}:8080"
+
+volumes:
+  postgres_data:

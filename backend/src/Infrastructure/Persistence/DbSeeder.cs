@@ -1,3 +1,4 @@
+using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Domain.Entities;
 using AssignmentSubmissionSystem.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,7 @@ namespace AssignmentSubmissionSystem.Infrastructure.Persistence;
 /// </summary>
 public static class DbSeeder
 {
-    public static async Task SeedAsync(AppDbContext db)
+    public static async Task SeedAsync(AppDbContext db, IPasswordHasher passwordHasher)
     {
         await db.Database.MigrateAsync();
 
@@ -26,7 +27,7 @@ public static class DbSeeder
         {
             Name = "System Admin",
             Email = "admin@lms.test",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@12345"),
+            PasswordHash = passwordHasher.Hash("Admin@12345"),
             Role = UserRole.Admin
         };
 
@@ -34,7 +35,7 @@ public static class DbSeeder
         {
             Name = "Jane Teacher",
             Email = "teacher@lms.test",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Teacher@12345"),
+            PasswordHash = passwordHasher.Hash("Teacher@12345"),
             Role = UserRole.Teacher
         };
 
@@ -42,7 +43,7 @@ public static class DbSeeder
         {
             Name = "John Student",
             Email = "student@lms.test",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Student@12345"),
+            PasswordHash = passwordHasher.Hash("Student@12345"),
             Role = UserRole.Student
         };
 
