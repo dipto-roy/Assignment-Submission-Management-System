@@ -20,8 +20,7 @@ public sealed class AuthController(IAuthService authService, IValidator<LoginReq
         var validation = await loginValidator.ValidateAsync(request, cancellationToken);
         if (!validation.IsValid)
         {
-            var error = string.Join(" ", validation.Errors.Select(e => e.ErrorMessage));
-            return BadRequest(ApiResponse<LoginResponseDto>.Fail(error));
+            return BadRequest(ApiResponse<LoginResponseDto>.Fail(validation.ToErrorMessage()));
         }
 
         var result = await authService.LoginAsync(request, cancellationToken);

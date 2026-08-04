@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AssignmentSubmissionSystem.Application.Common;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace AssignmentSubmissionSystem.Api.Middleware;
 
@@ -22,6 +23,13 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         {
             logger.LogWarning(ex, "Handled application exception: {Message}", ex.Message);
             await WriteResponseAsync(context, ex.StatusCode, ex.Message);
+        }
+        catch (DbUpdateException ex)
+        {
+            // Typically a FK Restrict violation (e.g. deleting a subject that still has
+            // assignments) or a unique-index violation (e.g. duplicate teacher assignment).
+            logger.LogWarning(ex, "Database update conflict");
+            await WriteResponseAsync(context, statusCode: 409, "This action conflicts with existing related data.");
         }
         catch (FluentValidation.ValidationException ex)
         {
