@@ -4,6 +4,8 @@ using AssignmentSubmissionSystem.Application.Assignments.Dtos;
 using AssignmentSubmissionSystem.Application.Common;
 using AssignmentSubmissionSystem.Application.Common.Constants;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
+using AssignmentSubmissionSystem.Application.Submissions;
+using AssignmentSubmissionSystem.Application.Submissions.Dtos;
 using AssignmentSubmissionSystem.Domain.Enums;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
@@ -16,8 +18,10 @@ namespace AssignmentSubmissionSystem.Api.Controllers;
 [Authorize]
 public sealed class AssignmentsController(
     IAssignmentService assignmentService,
+    ISubmissionService submissionService,
     IValidator<CreateAssignmentDto> createValidator,
-    IValidator<UpdateAssignmentDto> updateValidator) : ControllerBase
+    IValidator<UpdateAssignmentDto> updateValidator,
+    IValidator<CreateSubmissionDto> createSubmissionValidator) : ControllerBase
 {
     // Role-filtered: Admin → all, Teacher → own, Student → Published for their class.
     [HttpGet]
@@ -79,6 +83,28 @@ public sealed class AssignmentsController(
     {
         var updated = await assignmentService.SetPublishStateAsync(id, CurrentUserId, request, ct);
         return Ok(ApiResponse<AssignmentSummaryDto>.Ok(updated));
+    }
+
+    // Nested resource: a student submits their work against a specific assignment.
+    [HttpPost("{id:guid}/submissions")]
+    [Authorize(Roles = Roles.Student)]
+    public async Task<ActionResult<ApiResponse<SubmissionSummaryDto>>> Submit(
+        Guid id,
+        [FromBody] CreateSubmissionDto request,
+        CancellationToken ct)
+    {
+        var validation = await createSubmissionValidator.ValidateAsync(request, ct);
+        if (!validation.IsValid)
+        {
+            return BadRequest(ApiResponse<SubmissionSummaryDto>.Fail(validation.ToErrorMessage()));
+        }
+
+        var created = await submissionService.SubmitAsync(id, CurrentUserId, request, ct);
+        return CreatedAtAction(
+            nameof(SubmissionsController.GetMine),
+            "Submissions",
+            null,
+            ApiResponse<SubmissionSummaryDto>.Ok(created));
     }
 
     private Guid CurrentUserId
