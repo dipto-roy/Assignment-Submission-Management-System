@@ -6,6 +6,7 @@ using AssignmentSubmissionSystem.Application.Auth;
 using AssignmentSubmissionSystem.Application.Classes;
 using AssignmentSubmissionSystem.Application.Options;
 using AssignmentSubmissionSystem.Application.Subjects;
+using AssignmentSubmissionSystem.Application.Submissions;
 using AssignmentSubmissionSystem.Application.Users;
 using AssignmentSubmissionSystem.Infrastructure.Persistence;
 using AssignmentSubmissionSystem.Infrastructure.Persistence.Repositories;
@@ -79,6 +80,10 @@ builder.Services.AddScoped<ISubjectService, SubjectService>();
 // ---- Teacher domain (assignments) ----
 builder.Services.AddScoped<IAssignmentRepository, AssignmentRepository>();
 builder.Services.AddScoped<IAssignmentService, AssignmentService>();
+
+// ---- Student domain (submissions) ----
+builder.Services.AddScoped<ISubmissionRepository, SubmissionRepository>();
+builder.Services.AddScoped<ISubmissionService, SubmissionService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 
