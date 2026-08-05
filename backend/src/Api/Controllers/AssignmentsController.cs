@@ -85,6 +85,15 @@ public sealed class AssignmentsController(
         return Ok(ApiResponse<AssignmentSummaryDto>.Ok(updated));
     }
 
+    // Review view: Admin sees any assignment's submissions, Teacher only their own (business rule §7.5).
+    [HttpGet("{id:guid}/submissions")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Teacher}")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<SubmissionDetailDto>>>> GetSubmissions(Guid id, CancellationToken ct)
+    {
+        var submissions = await submissionService.GetForAssignmentAsync(id, CurrentUserId, CurrentRole, ct);
+        return Ok(ApiResponse<IReadOnlyList<SubmissionDetailDto>>.Ok(submissions));
+    }
+
     // Nested resource: a student submits their work against a specific assignment.
     [HttpPost("{id:guid}/submissions")]
     [Authorize(Roles = Roles.Student)]
