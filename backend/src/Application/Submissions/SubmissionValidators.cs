@@ -18,3 +18,21 @@ public sealed class UpdateSubmissionValidator : AbstractValidator<UpdateSubmissi
         RuleFor(x => x.Content).NotEmpty().MaximumLength(20_000);
     }
 }
+
+public sealed class GradeSubmissionValidator : AbstractValidator<GradeSubmissionDto>
+{
+    public GradeSubmissionValidator()
+    {
+        // The upper bound is the assignment's MaxMarks, which is only known at service level (business rule §7.6).
+        RuleFor(x => x.Marks).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Feedback).MaximumLength(5_000);
+    }
+}
+
+public sealed class SetSubmissionStatusValidator : AbstractValidator<SetSubmissionStatusDto>
+{
+    public SetSubmissionStatusValidator()
+    {
+        RuleFor(x => x.Status).IsInEnum();
+    }
+}

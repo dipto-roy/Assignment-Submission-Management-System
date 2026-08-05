@@ -15,7 +15,9 @@ namespace AssignmentSubmissionSystem.Api.Controllers;
 [Authorize]
 public sealed class SubmissionsController(
     ISubmissionService submissionService,
-    IValidator<UpdateSubmissionDto> updateValidator) : ControllerBase
+    IValidator<UpdateSubmissionDto> updateValidator,
+    IValidator<GradeSubmissionDto> gradeValidator,
+    IValidator<SetSubmissionStatusDto> statusValidator) : ControllerBase
 {
     // Business rule §7.4: a student only ever sees their own submissions.
     [HttpGet("mine")]
@@ -38,6 +40,38 @@ public sealed class SubmissionsController(
 
         var updated = await submissionService.UpdateAsync(id, CurrentUserId, request, ct);
         return Ok(ApiResponse<SubmissionSummaryDto>.Ok(updated));
+    }
+
+    // Marks + feedback. Owning teacher only (business rules §7.5, §7.6).
+    [HttpPatch("{id:guid}/grade")]
+    [Authorize(Roles = Roles.Teacher)]
+    public async Task<ActionResult<ApiResponse<SubmissionDetailDto>>> Grade(Guid id, [FromBody] GradeSubmissionDto request, CancellationToken ct)
+    {
+        var validation = await gradeValidator.ValidateAsync(request, ct);
+        if (!validation.IsValid)
+        {
+            return BadRequest(ApiResponse<SubmissionDetailDto>.Fail(validation.ToErrorMessage()));
+        }
+
+        var graded = await submissionService.GradeAsync(id, CurrentUserId, request, ct);
+        return Ok(ApiResponse<SubmissionDetailDto>.Ok(graded));
+    }
+
+    [HttpPatch("{id:guid}/status")]
+    [Authorize(Roles = Roles.Teacher)]
+    public async Task<ActionResult<ApiResponse<SubmissionDetailDto>>> SetStatus(
+        Guid id,
+        [FromBody] SetSubmissionStatusDto request,
+        CancellationToken ct)
+    {
+        var validation = await statusValidator.ValidateAsync(request, ct);
+        if (!validation.IsValid)
+        {
+            return BadRequest(ApiResponse<SubmissionDetailDto>.Fail(validation.ToErrorMessage()));
+        }
+
+        var updated = await submissionService.SetStatusAsync(id, CurrentUserId, request, ct);
+        return Ok(ApiResponse<SubmissionDetailDto>.Ok(updated));
     }
 
     private Guid CurrentUserId

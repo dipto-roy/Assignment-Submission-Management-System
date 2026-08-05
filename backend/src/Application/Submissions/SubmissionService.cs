@@ -14,6 +14,13 @@ public interface ISubmissionService
     Task<SubmissionSummaryDto> SubmitAsync(Guid assignmentId, Guid studentId, CreateSubmissionDto dto, CancellationToken cancellationToken);
 
     Task<SubmissionSummaryDto> UpdateAsync(Guid submissionId, Guid studentId, UpdateSubmissionDto dto, CancellationToken cancellationToken);
+
+    /// <summary>Every submission for one assignment — Admin sees any, Teacher only their own assignment (business rule §7.5).</summary>
+    Task<IReadOnlyList<SubmissionDetailDto>> GetForAssignmentAsync(Guid assignmentId, Guid userId, UserRole role, CancellationToken cancellationToken);
+
+    Task<SubmissionDetailDto> GradeAsync(Guid submissionId, Guid teacherId, GradeSubmissionDto dto, CancellationToken cancellationToken);
+
+    Task<SubmissionDetailDto> SetStatusAsync(Guid submissionId, Guid teacherId, SetSubmissionStatusDto dto, CancellationToken cancellationToken);
 }
 
 public sealed class SubmissionService(
@@ -101,6 +108,100 @@ public sealed class SubmissionService(
         await submissionRepository.UpdateAsync(submission, cancellationToken);
         return ToDto(submission);
     }
+
+    public async Task<IReadOnlyList<SubmissionDetailDto>> GetForAssignmentAsync(
+        Guid assignmentId,
+        Guid userId,
+        UserRole role,
+        CancellationToken cancellationToken)
+    {
+        var assignment = await assignmentRepository.FindByIdAsync(assignmentId, cancellationToken)
+            ?? throw new NotFoundAppException($"Assignment {assignmentId} was not found.");
+
+        // Business rule §7.5: only the owning teacher (or an Admin) may review submissions.
+        if (role != UserRole.Admin && !(role == UserRole.Teacher && assignment.TeacherId == userId))
+        {
+            throw new ForbiddenAppException("You do not own this assignment.");
+        }
+
+        var submissions = await submissionRepository.FindByAssignmentAsync(assignmentId, cancellationToken);
+        return submissions.Select(ToDetailDto).ToList();
+    }
+
+    public async Task<SubmissionDetailDto> GradeAsync(
+        Guid submissionId,
+        Guid teacherId,
+        GradeSubmissionDto dto,
+        CancellationToken cancellationToken)
+    {
+        var submission = await FindOwnedByTeacherAsync(submissionId, teacherId, cancellationToken);
+
+        // Business rule §7.6: awarded marks may never exceed the assignment's maximum.
+        if (dto.Marks > submission.Assignment.MaxMarks)
+        {
+            throw new BadRequestAppException($"Marks cannot exceed the assignment maximum of {submission.Assignment.MaxMarks}.");
+        }
+
+        submission.Marks = dto.Marks;
+        submission.Feedback = dto.Feedback;
+        submission.Status = SubmissionStatus.Graded;
+        submission.GradedAt = DateTime.UtcNow;
+
+        await submissionRepository.UpdateAsync(submission, cancellationToken);
+        return ToDetailDto(submission);
+    }
+
+    public async Task<SubmissionDetailDto> SetStatusAsync(
+        Guid submissionId,
+        Guid teacherId,
+        SetSubmissionStatusDto dto,
+        CancellationToken cancellationToken)
+    {
+        var submission = await FindOwnedByTeacherAsync(submissionId, teacherId, cancellationToken);
+
+        // Graded/Returned both assert "this work has been marked", so marks must already exist.
+        var requiresMarks = dto.Status is SubmissionStatus.Graded or SubmissionStatus.Returned;
+        if (requiresMarks && submission.Marks is null)
+        {
+            throw new BadRequestAppException($"Grade the submission before setting its status to {dto.Status}.");
+        }
+
+        submission.Status = dto.Status;
+
+        await submissionRepository.UpdateAsync(submission, cancellationToken);
+        return ToDetailDto(submission);
+    }
+
+    /// <summary>Loads a submission and enforces that the caller owns its parent assignment (business rule §7.5).</summary>
+    private async Task<Submission> FindOwnedByTeacherAsync(Guid submissionId, Guid teacherId, CancellationToken cancellationToken)
+    {
+        var submission = await submissionRepository.FindByIdAsync(submissionId, cancellationToken)
+            ?? throw new NotFoundAppException($"Submission {submissionId} was not found.");
+
+        if (submission.Assignment.TeacherId != teacherId)
+        {
+            throw new ForbiddenAppException("You do not own the assignment this submission belongs to.");
+        }
+
+        return submission;
+    }
+
+    private static SubmissionDetailDto ToDetailDto(Submission submission) => new(
+        submission.Id,
+        submission.AssignmentId,
+        submission.Assignment.Title,
+        submission.Assignment.Deadline,
+        submission.Assignment.MaxMarks,
+        submission.StudentId,
+        submission.Student.Name,
+        submission.Student.Email,
+        submission.Content,
+        submission.Status.ToString(),
+        submission.Marks,
+        submission.Feedback,
+        submission.SubmittedAt,
+        submission.UpdatedAt,
+        submission.GradedAt);
 
     private static SubmissionSummaryDto ToDto(Submission submission) => new(
         submission.Id,

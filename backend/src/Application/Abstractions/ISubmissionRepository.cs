@@ -11,6 +11,9 @@ public interface ISubmissionRepository
     /// <summary>Student's own submissions only (business rule §7.4 — never another student's).</summary>
     Task<IReadOnlyList<Submission>> FindByStudentAsync(Guid studentId, CancellationToken cancellationToken);
 
+    /// <summary>Teacher/Admin review view — every submission against one assignment, with student details.</summary>
+    Task<IReadOnlyList<Submission>> FindByAssignmentAsync(Guid assignmentId, CancellationToken cancellationToken);
+
     Task AddAsync(Submission submission, CancellationToken cancellationToken);
 
     Task UpdateAsync(Submission submission, CancellationToken cancellationToken);

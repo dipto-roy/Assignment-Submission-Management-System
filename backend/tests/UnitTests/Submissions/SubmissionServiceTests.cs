@@ -19,7 +19,7 @@ public sealed class SubmissionServiceTests
         _sut = new SubmissionService(_submissionRepository.Object, _assignmentRepository.Object);
     }
 
-    private static Assignment BuildAssignment(AssignmentStatus status, DateTime deadline)
+    private static Assignment BuildAssignment(AssignmentStatus status, DateTime deadline, Guid? teacherId = null, int maxMarks = 100)
     {
         var schoolClass = new SchoolClass { Name = "Class 10", Section = "A" };
         var subject = new Subject { Name = "Mathematics", Code = "MATH101", Class = schoolClass, ClassId = schoolClass.Id };
@@ -28,11 +28,11 @@ public sealed class SubmissionServiceTests
             Title = "Algebra",
             Description = "Solve problems",
             Deadline = deadline,
-            MaxMarks = 100,
+            MaxMarks = maxMarks,
             Status = status,
             Subject = subject,
             SubjectId = subject.Id,
-            TeacherId = Guid.NewGuid()
+            TeacherId = teacherId ?? Guid.NewGuid()
         };
     }
 
@@ -41,6 +41,7 @@ public sealed class SubmissionServiceTests
         AssignmentId = assignment.Id,
         Assignment = assignment,
         StudentId = studentId,
+        Student = new User { Id = studentId, Name = "Sample Student", Email = "student@lms.test", Role = UserRole.Student },
         Content = "My work",
         Status = SubmissionStatus.Submitted
     };
@@ -197,5 +198,178 @@ public sealed class SubmissionServiceTests
 
         result.Should().ContainSingle(s => s.StudentId == studentId);
         _submissionRepository.Verify(r => r.FindByStudentAsync(studentId, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // ---- Phase 6: grading, feedback, status ----
+
+    [Fact]
+    public async Task GetForAssignmentAsync_Throws404_WhenAssignmentDoesNotExist()
+    {
+        var assignmentId = Guid.NewGuid();
+        _assignmentRepository.Setup(r => r.FindByIdAsync(assignmentId, It.IsAny<CancellationToken>())).ReturnsAsync((Assignment?)null);
+
+        var act = () => _sut.GetForAssignmentAsync(assignmentId, Guid.NewGuid(), UserRole.Teacher, CancellationToken.None);
+
+        await Assert.ThrowsAsync<NotFoundAppException>(act);
+    }
+
+    [Fact]
+    public async Task GetForAssignmentAsync_Throws403_ForTeacherWhoDoesNotOwnTheAssignment()
+    {
+        var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1));
+        _assignmentRepository.Setup(r => r.FindByIdAsync(assignment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(assignment);
+
+        var act = () => _sut.GetForAssignmentAsync(assignment.Id, Guid.NewGuid(), UserRole.Teacher, CancellationToken.None);
+
+        await Assert.ThrowsAsync<ForbiddenAppException>(act);
+        _submissionRepository.Verify(r => r.FindByAssignmentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetForAssignmentAsync_Throws403_ForStudent()
+    {
+        var studentId = Guid.NewGuid();
+        var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1));
+        _assignmentRepository.Setup(r => r.FindByIdAsync(assignment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(assignment);
+
+        var act = () => _sut.GetForAssignmentAsync(assignment.Id, studentId, UserRole.Student, CancellationToken.None);
+
+        await Assert.ThrowsAsync<ForbiddenAppException>(act);
+    }
+
+    [Fact]
+    public async Task GetForAssignmentAsync_ReturnsSubmissions_ForOwningTeacher()
+    {
+        var teacherId = Guid.NewGuid();
+        var studentId = Guid.NewGuid();
+        var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1), teacherId);
+        _assignmentRepository.Setup(r => r.FindByIdAsync(assignment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(assignment);
+        _submissionRepository.Setup(r => r.FindByAssignmentAsync(assignment.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Submission> { BuildSubmission(studentId, assignment) });
+
+        var result = await _sut.GetForAssignmentAsync(assignment.Id, teacherId, UserRole.Teacher, CancellationToken.None);
+
+        result.Should().ContainSingle(s => s.StudentId == studentId && s.StudentName == "Sample Student");
+    }
+
+    [Fact]
+    public async Task GetForAssignmentAsync_ReturnsSubmissions_ForAdminOnAnyAssignment()
+    {
+        var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1));
+        _assignmentRepository.Setup(r => r.FindByIdAsync(assignment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(assignment);
+        _submissionRepository.Setup(r => r.FindByAssignmentAsync(assignment.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Submission> { BuildSubmission(Guid.NewGuid(), assignment) });
+
+        var result = await _sut.GetForAssignmentAsync(assignment.Id, Guid.NewGuid(), UserRole.Admin, CancellationToken.None);
+
+        result.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task GradeAsync_Throws404_WhenSubmissionDoesNotExist()
+    {
+        var id = Guid.NewGuid();
+        _submissionRepository.Setup(r => r.FindByIdAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((Submission?)null);
+
+        var act = () => _sut.GradeAsync(id, Guid.NewGuid(), new GradeSubmissionDto(50, "ok"), CancellationToken.None);
+
+        await Assert.ThrowsAsync<NotFoundAppException>(act);
+    }
+
+    [Fact]
+    public async Task GradeAsync_Throws403_WhenTeacherDoesNotOwnTheAssignment()
+    {
+        var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1));
+        var submission = BuildSubmission(Guid.NewGuid(), assignment);
+        _submissionRepository.Setup(r => r.FindByIdAsync(submission.Id, It.IsAny<CancellationToken>())).ReturnsAsync(submission);
+
+        var act = () => _sut.GradeAsync(submission.Id, Guid.NewGuid(), new GradeSubmissionDto(50, "ok"), CancellationToken.None);
+
+        await Assert.ThrowsAsync<ForbiddenAppException>(act);
+        _submissionRepository.Verify(r => r.UpdateAsync(It.IsAny<Submission>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GradeAsync_Throws400_WhenMarksExceedAssignmentMaxMarks()
+    {
+        var teacherId = Guid.NewGuid();
+        var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1), teacherId, maxMarks: 50);
+        var submission = BuildSubmission(Guid.NewGuid(), assignment);
+        _submissionRepository.Setup(r => r.FindByIdAsync(submission.Id, It.IsAny<CancellationToken>())).ReturnsAsync(submission);
+
+        var act = () => _sut.GradeAsync(submission.Id, teacherId, new GradeSubmissionDto(51, "too generous"), CancellationToken.None);
+
+        await Assert.ThrowsAsync<BadRequestAppException>(act);
+        _submissionRepository.Verify(r => r.UpdateAsync(It.IsAny<Submission>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GradeAsync_RecordsMarksFeedbackAndStatus_ForOwningTeacher()
+    {
+        var teacherId = Guid.NewGuid();
+        var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1), teacherId, maxMarks: 50);
+        var submission = BuildSubmission(Guid.NewGuid(), assignment);
+        _submissionRepository.Setup(r => r.FindByIdAsync(submission.Id, It.IsAny<CancellationToken>())).ReturnsAsync(submission);
+
+        var result = await _sut.GradeAsync(submission.Id, teacherId, new GradeSubmissionDto(50, "Excellent work"), CancellationToken.None);
+
+        result.Marks.Should().Be(50);
+        result.Feedback.Should().Be("Excellent work");
+        result.Status.Should().Be(nameof(SubmissionStatus.Graded));
+        result.GradedAt.Should().NotBeNull();
+        _submissionRepository.Verify(r => r.UpdateAsync(submission, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SetStatusAsync_Throws403_WhenTeacherDoesNotOwnTheAssignment()
+    {
+        var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1));
+        var submission = BuildSubmission(Guid.NewGuid(), assignment);
+        _submissionRepository.Setup(r => r.FindByIdAsync(submission.Id, It.IsAny<CancellationToken>())).ReturnsAsync(submission);
+
+        var act = () => _sut.SetStatusAsync(submission.Id, Guid.NewGuid(), new SetSubmissionStatusDto(SubmissionStatus.Late), CancellationToken.None);
+
+        await Assert.ThrowsAsync<ForbiddenAppException>(act);
+    }
+
+    [Fact]
+    public async Task SetStatusAsync_Throws400_WhenMarkingReturnedBeforeGrading()
+    {
+        var teacherId = Guid.NewGuid();
+        var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1), teacherId);
+        var submission = BuildSubmission(Guid.NewGuid(), assignment);
+        _submissionRepository.Setup(r => r.FindByIdAsync(submission.Id, It.IsAny<CancellationToken>())).ReturnsAsync(submission);
+
+        var act = () => _sut.SetStatusAsync(submission.Id, teacherId, new SetSubmissionStatusDto(SubmissionStatus.Returned), CancellationToken.None);
+
+        await Assert.ThrowsAsync<BadRequestAppException>(act);
+    }
+
+    [Fact]
+    public async Task SetStatusAsync_Succeeds_ForOwningTeacher()
+    {
+        var teacherId = Guid.NewGuid();
+        var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1), teacherId);
+        var submission = BuildSubmission(Guid.NewGuid(), assignment);
+        _submissionRepository.Setup(r => r.FindByIdAsync(submission.Id, It.IsAny<CancellationToken>())).ReturnsAsync(submission);
+
+        var result = await _sut.SetStatusAsync(submission.Id, teacherId, new SetSubmissionStatusDto(SubmissionStatus.Late), CancellationToken.None);
+
+        result.Status.Should().Be(nameof(SubmissionStatus.Late));
+        _submissionRepository.Verify(r => r.UpdateAsync(submission, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SetStatusAsync_AllowsReturned_AfterGrading()
+    {
+        var teacherId = Guid.NewGuid();
+        var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1), teacherId);
+        var submission = BuildSubmission(Guid.NewGuid(), assignment);
+        submission.Marks = 40;
+        _submissionRepository.Setup(r => r.FindByIdAsync(submission.Id, It.IsAny<CancellationToken>())).ReturnsAsync(submission);
+
+        var result = await _sut.SetStatusAsync(submission.Id, teacherId, new SetSubmissionStatusDto(SubmissionStatus.Returned), CancellationToken.None);
+
+        result.Status.Should().Be(nameof(SubmissionStatus.Returned));
     }
 }
