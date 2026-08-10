@@ -280,3 +280,5 @@ filters. 5 new frontend tests (62 total).
 - One student belongs to exactly one class; one subject belongs to exactly one class; one teacher can teach multiple subjects.
 - "Update submission before deadline" — after deadline, submission locked (status auto → Late if submitted late, per teacher-configurable rule or fixed).
 - Assignment delete blocked if submissions already exist (data integrity over destructive cascade).
+
+ notifications or file uploads

@@ -123,8 +123,10 @@ App on <http://localhost:3000>. The API's CORS policy allows `http://localhost:3
 
 ## Database setup
 
-**Nothing needs to be created by hand.** `DbSeeder.MigrateAsync` runs EF Core migrations on
-every start-up, and demo data is seeded in Development.
+**Nothing needs to be created by hand.** `DbSeeder.MigrateAndSeedAsync` runs EF Core
+migrations on every start-up, and demo data is seeded in Development. Both steps are held
+behind a PostgreSQL advisory lock, so concurrent start-ups (several API replicas, or the
+integration suite booting more than one test host) cannot race on a fresh database.
 
 | Artifact | Path | Purpose |
 | --- | --- | --- |
@@ -200,7 +202,7 @@ cd backend
 
 ```bash
 cd frontend
-npm test              # 62 tests
+npm test              # 67 tests
 npm run test:coverage
 ```
 
@@ -219,7 +221,9 @@ Both suites run on every push via GitHub Actions (`.github/workflows/ci.yml`).
 - Create, update and delete users, with a role and (for students) an initial class.
 - Manage classes and subjects; assign teachers to subjects.
 - Manage class rosters — enroll, move and unenroll students.
-- Read access to every assignment and submission.
+- Oversight of every assignment across all classes — including teachers' drafts — filtered
+  by class, status and title, with each assignment's submissions, marks and feedback. Read-only:
+  editing from here would bypass the teacher-ownership rules the API enforces on writes.
 
 ### Teacher
 
@@ -261,8 +265,8 @@ GET    /classes          POST /classes    PUT /classes/{id}   DELETE /classes/{i
 GET    /classes/{id}/students   POST /classes/{id}/students
 DELETE /classes/{id}/students/{studentId}                                     [Admin]
 
-GET    /subjects         POST /subjects   PUT /subjects/{id}
-POST   /subjects/{id}/assign-teacher                                          [Admin]
+GET    /subjects         POST /subjects   PUT /subjects/{id}  DELETE /subjects/{id}
+GET    /subjects/{id}    POST /subjects/{id}/assign-teacher                   [Admin]
 
 GET    /assignments      ?status= &subjectId= &classId= &search= &page= &pageSize=
 GET    /assignments/{id}                                              [role-filtered]
@@ -387,5 +391,5 @@ Documented per the brief's instruction to make and record reasonable assumptions
   multi-instance deployment would need a shared store.
 - **No email delivery**, password reset, or account self-service.
 - **`schema.sql` creates the schema but seeds no data** (see [Database setup](#database-setup)).
-- **Frontend coverage is 39% overall.** The business-rule modules are well above the 80%
+- **Frontend coverage is 44% overall.** The business-rule modules are well above the 80%
   bar; the remainder is presentational panels covered indirectly.
