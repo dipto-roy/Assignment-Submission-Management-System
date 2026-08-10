@@ -221,16 +221,15 @@ var app = builder.Build();
 // ---- Migrate on startup (safe/no-op if already applied) ----
 // Demo users are seeded in Development only: their passwords are published in the README,
 // so seeding outside Development would plant known admin credentials in a real database.
+
+// Migration and seeding are serialised by an advisory lock inside MigrateAndSeedAsync, so
+// concurrent start-ups (multiple replicas, or several integration-test hosts) cannot collide.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DbSeeder.MigrateAsync(db);
+    var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
 
-    if (app.Environment.IsDevelopment())
-    {
-        var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-        await DbSeeder.SeedAsync(db, passwordHasher);
-    }
+    await DbSeeder.MigrateAndSeedAsync(db, passwordHasher, app.Environment.IsDevelopment());
 }
 
 // ---- Pipeline ----
