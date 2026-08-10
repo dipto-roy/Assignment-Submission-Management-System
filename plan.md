@@ -182,7 +182,81 @@ EF Core Code-First → Migrations folder committed. `dotnet ef database update` 
 
 ---
 
-## 10. Open Assumptions (to confirm/document in README)
+## 10. Missing Work Checklist (codebase audit — 10 Aug 2026)
+
+Audit of `backend/` and `frontend/` against roadmap §3–§5 and the phases in §8.
+Phases 1–6 are done on the **backend**; the frontend stops at Phase 3.
+
+### 10.1 Frontend — Teacher domain (Phase 4/6) — **NOT STARTED**
+
+`frontend/src/app/teacher/page.tsx` is a 9-line stub (`// TODO(phase 4/6)`).
+
+- [ ] `lib/api/assignments.ts` — typed client for `GET/POST/PUT/DELETE /assignments`, `PATCH /assignments/{id}/publish`
+- [ ] `lib/api/submissions.ts` — `GET /assignments/{id}/submissions`, `PATCH /submissions/{id}/grade`, `PATCH /submissions/{id}/status`
+- [ ] Teacher route guard (`useRequireRole("Teacher")`) — currently absent on the page
+- [ ] Assignment list scoped to teacher's subjects, with Draft/Published badge
+- [ ] Create/edit assignment form: title, description, deadline, maxMarks, subject picker + client-side validation
+- [ ] Delete assignment (surface the "blocked when submissions exist" error from the API)
+- [ ] Publish / unpublish toggle
+- [ ] Submissions review table per assignment (student, submittedAt, status)
+- [ ] Grade + feedback form with `marks <= maxMarks` client validation mirroring `SubmissionValidators`
+- [ ] Submission status change control (Submitted / Late / Graded / Returned)
+
+### 10.2 Frontend — Student domain (Phase 5/6) — **NOT STARTED**
+
+`frontend/src/app/student/page.tsx` is a 9-line stub (`// TODO(phase 5/6)`).
+
+- [ ] Student route guard (`useRequireRole("Student")`)
+- [ ] Published-assignment list for the student's class (Draft must never appear)
+- [ ] Assignment detail view: description, deadline, maxMarks, remaining-time indicator
+- [ ] Submit answer form (text content per §11 assumption) + validation
+- [ ] Update submission before deadline; UI locked after deadline with a clear reason
+- [ ] `GET /submissions/mine` view — status, marks, teacher feedback
+
+### 10.3 Frontend — cross-cutting
+
+- [ ] **No frontend tests exist.** `frontend/package.json` has no Jest/Vitest/RTL dependency and no `test` script (plan §8 Phase 7 requires them). Add runner + tests for `apiFetch` envelope/error handling, `AuthContext`, `useRequireRole` redirects, and the deadline-lock logic.
+- [ ] `frontend/README.md` is still the unmodified `create-next-app` boilerplate
+- [ ] No `frontend/.env.example` — `NEXT_PUBLIC_API_URL` is only documented inside `backend/.env.example`
+- [ ] No shared nav/layout or sign-out outside the admin page; `app/layout.tsx` has no role-based nav guard (plan §5 calls for one)
+- [ ] No error boundary / 404 / global loading states
+- [ ] Responsive pass not done (Tailwind is wired, layouts are single-column desktop-first)
+- [ ] Admin UI has no student-enrollment management: a student's class can only be set at creation (`CreateUserDto.ClassId`); there is no re-enroll / move / unenroll surface
+- [ ] Frontend `types/index.ts` has `Assignment` / `Submission` interfaces but nothing consumes them yet
+
+### 10.4 Backend gaps
+
+Backend API surface matches §4 and all 10 business rules in §7 have tests (82 `[Fact]`/`[Theory]` across unit + integration).
+
+- [ ] **No enrollment endpoints.** `StudentClass` rows are only created via `POST /users` with `ClassId`. Missing: `GET /classes/{id}/students`, enroll/unenroll. Needed to back §10.3's admin UI.
+- [ ] `POST /auth/register` from §4 is intentionally not implemented (admin-only creation via `POST /users`) — **document this in the README** rather than leaving §4 stale
+- [ ] No pagination or filtering anywhere (`grep Skip(/Take(` → zero hits). Roadmap §4 "Optional Additions" + plan §8 Phase 8.
+- [ ] No notifications (optional)
+- [ ] No health-check endpoint for compose `depends_on` / evaluator smoke test
+- [ ] No rate limiting on `/auth/login`
+- [ ] Test coverage figure is unmeasured — no coverage run/report to back the "80%+" claim in §8 Phase 7
+
+### 10.5 Packaging & submission blockers (roadmap §4–§5)
+
+- [ ] **No root `README.md`** — the single most-weighted deliverable. Needs: overview, features, stack, structure, setup, DB setup, frontend run, backend run, test instructions, assumptions, known limitations.
+- [ ] **Demo credentials not documented outside code.** They live only in the `DbSeeder` XML comment (`admin@lms.test` / `teacher@lms.test` / `student@lms.test`). Roadmap §4 wants a table.
+- [ ] **Seeding + Swagger are Development-only** (`Program.cs` lines ~165, ~172) while `docker-compose.yml` defaults `ASPNETCORE_ENVIRONMENT` to `Production`. An evaluator who copies `.env.example` without setting it gets **no demo users and no Swagger UI**. Either default compose to Development or make the README explicit.
+- [ ] No frontend `Dockerfile` / no `frontend` service in `docker-compose.yml` — compose only brings up `postgres` + `api`, so "one command to run the project" is not true yet
+- [ ] No DB script/backup fallback for evaluators who cannot run `dotnet ef` (migrations exist and run on startup, so this is optional — decide and document)
+- [ ] No CI workflow (`.github/` absent) — optional, but a green build badge is cheap credibility
+- [ ] Final pass on roadmap §5 checklist: verify no secrets committed (`backend/.env` holds a real `Jwt__Key` and is gitignored — confirm it never entered history)
+
+### 10.6 Suggested order (deadline 14 Aug 2026)
+
+1. Teacher UI (§10.1) — largest remaining slice
+2. Student UI (§10.2) — closes the demo loop
+3. Root README + demo credentials + environment fix (§10.5) — submission blockers
+4. Frontend tests (§10.3) + coverage report (§10.4)
+5. Optional extras: pagination, filtering, frontend Docker service, CI
+
+---
+
+## 11. Open Assumptions (to confirm/document in README)
 
 - Submission = text content (not file upload) unless file upload explicitly wanted — keep scope lean, note as assumption; file upload listed as stretch goal.
 - One student belongs to exactly one class; one subject belongs to exactly one class; one teacher can teach multiple subjects.
