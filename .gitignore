@@ -3,11 +3,14 @@ backend/**/bin/
 backend/**/obj/
 backend/**/*.user
 backend/**/*.log
+backend/TestResults/
 
 # ---- Node / Next.js frontend ----
 frontend/node_modules/
 frontend/.next/
 frontend/out/
+frontend/coverage/
+frontend/tsconfig.tsbuildinfo
 frontend/*.log
 frontend/npm-debug.log*
 

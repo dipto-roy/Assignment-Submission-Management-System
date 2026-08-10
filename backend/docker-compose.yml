@@ -33,7 +33,11 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      # Development by default so a fresh `docker compose up` gives the evaluator seeded
+      # demo accounts and Swagger UI. Both are Development-gated in Program.cs: seeding
+      # plants passwords that are published in the README, and neither belongs in a real
+      # deployment. Set ASPNETCORE_ENVIRONMENT=Production for anything beyond local use.
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-assignment_submission_dev};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres_dev_only}
       Jwt__Key: ${Jwt__Key:?Jwt__Key must be set}
       Jwt__Issuer: ${Jwt__Issuer:-AssignmentSubmissionSystem}
@@ -53,6 +57,23 @@ services:
       timeout: 5s
       retries: 6
       start_period: 20s
+
+  frontend:
+    build:
+      # The Next.js app lives outside this file's directory; compose resolves the context
+      # relative to the compose file, so ../frontend is the app root.
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        # Baked into the client bundle at build time. This is the URL the browser uses, so
+        # it must be the published host port of the api service, not http://api:8080.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api/v1}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
 
 volumes:
   postgres_data:

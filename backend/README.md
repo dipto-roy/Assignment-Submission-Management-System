@@ -10,7 +10,7 @@ backend/
 ├── Directory.Build.props          # Shared build settings for every project
 ├── .editorconfig                  # Formatting + analyzer configuration
 ├── global.json                    # Pins the .NET SDK major version
-├── docker-compose.yml             # Postgres + API
+├── docker-compose.yml             # Postgres + API + frontend
 ├── Dockerfile                     # Multi-stage build, non-root runtime
 ├── .env.example                   # Template — copy to .env
 ├── src/
@@ -58,7 +58,15 @@ rather than falling back to a checked-in default.
 docker compose up --build
 ```
 
-API on `http://localhost:${API_PORT:-5000}`, Postgres on `${POSTGRES_PORT:-5434}`.
+Brings up Postgres, the API and the Next.js frontend (built from `../frontend`):
+API on `http://localhost:${API_PORT:-5000}`, frontend on `http://localhost:${FRONTEND_PORT:-3000}`,
+Postgres on `${POSTGRES_PORT:-5434}`.
+
+`ASPNETCORE_ENVIRONMENT` defaults to `Development` here so a fresh stack has seeded demo
+accounts and Swagger UI. Set it to `Production` for anything beyond local evaluation — both
+are deliberately Development-gated in `Program.cs`.
+
+See the [root README](../README.md) for the full setup guide and demo credentials.
 
 ### Locally
 
