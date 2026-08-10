@@ -185,7 +185,7 @@ EF Core Code-First → Migrations folder committed. `dotnet ef database update` 
 ## 10. Missing Work Checklist (codebase audit — 10 Aug 2026)
 
 Audit of `backend/` and `frontend/` against roadmap §3–§5 and the phases in §8.
-Phases 1–6 are done on the **backend**; the frontend has Phases 1–4/6 (admin + teacher) and stops before Phase 5.
+Phases 1–6 are done on the **backend** and, as of 10 Aug 2026, on the **frontend** as well (admin + teacher + student). Remaining work is Phases 7–9: tests, polish, packaging.
 
 ### 10.1 Frontend — Teacher domain (Phase 4/6) — **DONE** (10 Aug 2026)
 
@@ -206,16 +206,17 @@ Supporting work landed with this slice:
 - `components/ui/styles.ts` — shared control classes extracted from the admin panels
 - **Backend fix:** registered `JsonStringEnumConverter` in `Program.cs`. Enums were serialized out as names but only accepted as numbers, so any client sending `"Teacher"` / `"Returned"` got a 400 — this affected `POST /users` from the existing admin UI as well as the new status endpoint.
 
-### 10.2 Frontend — Student domain (Phase 5/6) — **NOT STARTED**
+### 10.2 Frontend — Student domain (Phase 5/6) — **DONE** (10 Aug 2026)
 
-`frontend/src/app/student/page.tsx` is a 9-line stub (`// TODO(phase 5/6)`).
+- [x] Student route guard (`useRequireRole("Student")`) — `app/student/page.tsx`
+- [x] Published-assignment list for the student's class — `components/student/StudentDashboard.tsx`; Draft never appears because `GET /assignments` is filtered server-side (`FindPublishedForStudentAsync`, business rule §7.3)
+- [x] Assignment detail view: description, deadline, maxMarks, remaining-time indicator — `components/student/AssignmentCard.tsx`
+- [x] Submit answer form (text content per §11 assumption) + validation — `components/student/SubmissionForm.tsx`
+- [x] Update submission before deadline; UI locked after deadline with a clear reason (mirrors §7.1/§7.2, still enforced server-side)
+- [x] `GET /submissions/mine` view — status, marks, teacher feedback — `components/student/MySubmissionsPanel.tsx`
 
-- [ ] Student route guard (`useRequireRole("Student")`)
-- [ ] Published-assignment list for the student's class (Draft must never appear)
-- [ ] Assignment detail view: description, deadline, maxMarks, remaining-time indicator
-- [ ] Submit answer form (text content per §11 assumption) + validation
-- [ ] Update submission before deadline; UI locked after deadline with a clear reason
-- [ ] `GET /submissions/mine` view — status, marks, teacher feedback
+The dashboard owns both lists and joins them by `assignmentId`, so a save updates
+the assignment card and the marks/feedback table together.
 
 ### 10.3 Frontend — cross-cutting
 
@@ -253,7 +254,7 @@ Backend API surface matches §4 and all 10 business rules in §7 have tests (82 
 ### 10.6 Suggested order (deadline 14 Aug 2026)
 
 1. ~~Teacher UI (§10.1)~~ — done
-2. Student UI (§10.2) — closes the demo loop
+2. ~~Student UI (§10.2)~~ — done
 3. Root README + demo credentials + environment fix (§10.5) — submission blockers
 4. Frontend tests (§10.3) + coverage report (§10.4)
 5. Optional extras: pagination, filtering, frontend Docker service, CI
