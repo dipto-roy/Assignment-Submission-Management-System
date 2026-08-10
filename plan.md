@@ -170,15 +170,15 @@ EF Core Code-First → Migrations folder committed. `dotnet ef database update` 
 
 ## 9. Deliverables Checklist (mirrors roadmap §4–§5)
 
-- [ ] Frontend (Next.js/TS) complete
-- [ ] Backend (ASP.NET Core Web API) complete
-- [ ] PostgreSQL migrations + seed data + setup script
-- [ ] Unit tests: business rules, authZ, submission workflow
-- [ ] README: overview, features, stack, structure, setup (DB/frontend/backend), test run instructions, assumptions, known limitations
-- [ ] Demo credentials for Admin/Teacher/Student (seeded, documented)
-- [ ] `.env.example` (no real secrets)
-- [ ] Role-based access enforced server-side, not just UI
-- [ ] Optional: Docker Compose, pagination, filtering, notifications, Swagger URL
+- [x] Frontend (Next.js/TS) complete — admin, teacher and student dashboards (§10.1–§10.3)
+- [x] Backend (ASP.NET Core Web API) complete — API surface matches §4 (minus the deliberate `/auth/register` omission)
+- [x] PostgreSQL migrations + seed data + setup script — migrations run on start-up; `backend/scripts/schema.sql` as a no-SDK fallback
+- [x] Unit tests: business rules, authZ, submission workflow — 114 backend tests, 90.1% line coverage
+- [x] README: overview, features, stack, structure, setup (DB/frontend/backend), test run instructions, assumptions, known limitations
+- [x] Demo credentials for Admin/Teacher/Student (seeded, documented in the root README)
+- [x] `.env.example` (no real secrets; `.env` never entered git history)
+- [x] Role-based access enforced server-side, not just UI — role-scoped repository queries plus ownership checks
+- [x] Optional: Docker Compose (postgres + api + frontend), pagination, filtering, Swagger URL, health check, login rate limiting, CI. Notifications deliberately skipped.
 
 ---
 
@@ -237,35 +237,40 @@ bar: `client.ts` 96%, `AuthContext.tsx` 97%, `useRequireRole` 100%, `datetime.ts
 per-resource API modules (`admin.ts`, `assignments.ts`, `submissions.ts`) are
 one-line `apiFetch` wrappers with no logic and are exercised through the components.
 
-### 10.4 Backend gaps
+### 10.4 Backend gaps — **DONE** (10 Aug 2026, except notifications)
 
-Backend API surface matches §4 and all 10 business rules in §7 have tests (82 `[Fact]`/`[Theory]` across unit + integration).
+Backend API surface matches §4 and all 10 business rules in §7 have tests (114 `[Fact]`/`[Theory]` across unit + integration).
 
 - [x] **Enrollment endpoints** — `GET /classes/{id}/students`, `POST /classes/{id}/students`, `DELETE /classes/{id}/students/{studentId}` (all Admin-only). Enrolling *moves* the student, since plan §11 assumes one class per student. Covered by 6 new unit tests.
-- [ ] `POST /auth/register` from §4 is intentionally not implemented (admin-only creation via `POST /users`) — **document this in the README** rather than leaving §4 stale
-- [ ] No pagination or filtering anywhere (`grep Skip(/Take(` → zero hits). Roadmap §4 "Optional Additions" + plan §8 Phase 8.
-- [ ] No notifications (optional)
-- [ ] No health-check endpoint for compose `depends_on` / evaluator smoke test
-- [ ] No rate limiting on `/auth/login`
-- [ ] Test coverage figure is unmeasured — no coverage run/report to back the "80%+" claim in §8 Phase 7
+- [x] `POST /auth/register` from §4 is intentionally not implemented (admin-only creation via `POST /users`) — documented under "Registration" in `backend/README.md`
+- [x] **Pagination + filtering** on all four list endpoints (`GET /users`, `GET /assignments`, `GET /assignments/{id}/submissions`, `GET /submissions/mine`). `?page=`/`?pageSize=` (default 20, max 100, out-of-range clamped) translated to SQL `COUNT` + `OFFSET`/`LIMIT` via `PageQuery`/`PagedResult<T>` + `QueryablePagingExtensions`. Page totals ride in the envelope's `meta` (`total`, `page`, `pageSize`, `totalPages`) so `data` stays shape-compatible. Filters: users by `role`/`search`, assignments by `status`/`subjectId`/`classId`/`search`, submissions by `status` — applied *after* the role scope, so a student's `?status=Draft` returns an empty page rather than another student's drafts (§7.3).
+- [x] **Health-check endpoint** — anonymous `GET /health` with `AddDbContextCheck`, wired as the `api` service healthcheck in `docker-compose.yml` (busybox `wget` + `grep Healthy`)
+- [x] **Rate limiting on `/auth/login`** — fixed window per client IP (10/60s, configurable via `RateLimiting__Login__*`), 429 + `Retry-After` in the standard error envelope. Options are resolved per request, not captured at registration, so later configuration layers (the integration factory) take effect.
+- [x] **Test coverage measured** — `backend/scripts/coverage.sh` runs both projects with Cobertura collection and prints a per-assembly summary: Application 98.0%, Domain 96.5%, Api 87.6%, Infrastructure 78.0%, **total 90.1%** across 114 passing tests. Clears the §8 Phase 7 bar.
+- [ ] No notifications — optional in roadmap §4, deliberately out of scope for the deadline
 
-### 10.5 Packaging & submission blockers (roadmap §4–§5)
+Frontend follow-through (the API default page size would otherwise have truncated every list at 20):
+`lib/api/query.ts` adds `toQueryString` + a `FULL_PAGE` default, and `getUsers` / `getAssignments` /
+`getAssignmentSubmissions` / `getMySubmissions` now request `pageSize=100` and accept optional
+filters. 5 new frontend tests (62 total).
 
-- [ ] **No root `README.md`** — the single most-weighted deliverable. Needs: overview, features, stack, structure, setup, DB setup, frontend run, backend run, test instructions, assumptions, known limitations.
-- [ ] **Demo credentials not documented outside code.** They live only in the `DbSeeder` XML comment (`admin@lms.test` / `teacher@lms.test` / `student@lms.test`). Roadmap §4 wants a table.
-- [ ] **Seeding + Swagger are Development-only** (`Program.cs` lines ~165, ~172) while `docker-compose.yml` defaults `ASPNETCORE_ENVIRONMENT` to `Production`. An evaluator who copies `.env.example` without setting it gets **no demo users and no Swagger UI**. Either default compose to Development or make the README explicit.
-- [ ] No frontend `Dockerfile` / no `frontend` service in `docker-compose.yml` — compose only brings up `postgres` + `api`, so "one command to run the project" is not true yet
-- [ ] No DB script/backup fallback for evaluators who cannot run `dotnet ef` (migrations exist and run on startup, so this is optional — decide and document)
-- [ ] No CI workflow (`.github/` absent) — optional, but a green build badge is cheap credibility
-- [ ] Final pass on roadmap §5 checklist: verify no secrets committed (`backend/.env` holds a real `Jwt__Key` and is gitignored — confirm it never entered history)
+### 10.5 Packaging & submission blockers (roadmap §4–§5) — **DONE** (10 Aug 2026)
+
+- [x] **Root `README.md`** — overview, feature list per role, stack, structure, quick start, manual setup, DB setup, frontend/backend run, test + coverage instructions, API surface, design decisions, assumptions, known limitations
+- [x] **Demo credentials documented** — table in the root README (`admin@lms.test` / `teacher@lms.test` / `student@lms.test`), plus what the seed creates so every screen has data on first login
+- [x] **Seeding + Swagger environment fix** — `docker-compose.yml` now defaults `ASPNETCORE_ENVIRONMENT` to `Development`, so a fresh `docker compose up` gives an evaluator seeded accounts and Swagger UI. Both stay Development-gated in `Program.cs` (the demo passwords are published), and the README says to set `Production` for real use.
+- [x] **Frontend `Dockerfile` + `frontend` service in compose** — multi-stage build on Next.js `output: "standalone"`, non-root runtime, `depends_on: api → service_healthy`. `NEXT_PUBLIC_API_URL` is a build arg because it is inlined into the browser bundle. Verified end to end: `docker compose up --build` → frontend 200, `/health` Healthy, seeded admin login returns a token.
+- [x] **DB script fallback** — `backend/scripts/schema.sql`, generated with `dotnet ef migrations script --idempotent`, for evaluators without the .NET SDK. Schema only: the seeded passwords are BCrypt hashes computed at runtime, which is documented rather than papered over.
+- [x] **CI workflow** — `.github/workflows/ci.yml`: backend build + 114 tests against a real Postgres service container, frontend lint + 62 tests + production build. `coverage/` added to the ESLint ignores so `npm run lint` is clean.
+- [x] **Secrets audit** — `backend/.env` was never committed (`git log --all -- backend/.env` is empty) and no key material appears anywhere in history; `.gitignore` covers `.env*` with an `!.env.example` exception. `backend/TestResults/`, `frontend/coverage/` and `tsconfig.tsbuildinfo` added to `.gitignore`.
 
 ### 10.6 Suggested order (deadline 14 Aug 2026)
 
 1. ~~Teacher UI (§10.1)~~ — done
 2. ~~Student UI (§10.2)~~ — done
-3. Root README + demo credentials + environment fix (§10.5) — **the remaining submission blockers**
-4. ~~Frontend tests (§10.3)~~ — done; backend coverage report (§10.4) still open
-5. Optional extras: pagination, filtering, frontend Docker service, CI
+3. ~~Root README + demo credentials + environment fix (§10.5)~~ — done
+4. ~~Frontend tests (§10.3)~~ and ~~backend coverage report (§10.4)~~ — done
+5. Optional extras: ~~frontend Docker service~~, ~~CI~~ — done; notifications remain out of scope
 
 ---
 

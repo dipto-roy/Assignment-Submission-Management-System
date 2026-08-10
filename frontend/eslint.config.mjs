@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated output, not source: the v8 coverage reporter emits its own vendored JS.
+    "coverage/**",
   ]),
 ]);
 

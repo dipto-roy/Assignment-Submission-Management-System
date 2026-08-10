@@ -1,12 +1,21 @@
 import { apiFetch } from "@/lib/api/client";
-import type { Assignment, CreateAssignmentInput, UpdateAssignmentInput } from "@/types";
+import { FULL_PAGE, toQueryString, type PageParams } from "@/lib/api/query";
+import type { Assignment, AssignmentStatus, CreateAssignmentInput, UpdateAssignmentInput } from "@/types";
+
+export interface AssignmentListParams extends PageParams {
+  status?: AssignmentStatus;
+  subjectId?: string;
+  classId?: string;
+  search?: string;
+}
 
 /**
  * Assignment endpoints (plan §4). GET is role-filtered server-side:
  * Admin sees all, Teacher only their own subjects, Student only Published
  * assignments for their class.
  */
-export const getAssignments = () => apiFetch<Assignment[]>("/assignments");
+export const getAssignments = (params: AssignmentListParams = FULL_PAGE) =>
+  apiFetch<Assignment[]>(`/assignments${toQueryString({ ...FULL_PAGE, ...params })}`);
 
 export const getAssignment = (id: string) => apiFetch<Assignment>(`/assignments/${id}`);
 

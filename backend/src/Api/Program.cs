@@ -1,11 +1,15 @@
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using AssignmentSubmissionSystem.Api.Configuration;
 using AssignmentSubmissionSystem.Api.Middleware;
 using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Assignments;
 using AssignmentSubmissionSystem.Application.Auth;
 using AssignmentSubmissionSystem.Application.Classes;
+using AssignmentSubmissionSystem.Application.Common;
+using AssignmentSubmissionSystem.Application.Common.Constants;
 using AssignmentSubmissionSystem.Application.Options;
 using AssignmentSubmissionSystem.Application.Subjects;
 using AssignmentSubmissionSystem.Application.Submissions;
@@ -16,6 +20,7 @@ using AssignmentSubmissionSystem.Infrastructure.Security;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -62,6 +67,13 @@ var connectionString = builder.Configuration.GetConnectionString("Default")
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
+// ---- Health checks ----
+// `/health` is anonymous and dependency-aware: it opens a connection through the DbContext,
+// so compose's `depends_on: service_healthy` and an evaluator's smoke test both get a truthful
+// answer instead of "the process is up but the database is not reachable".
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>("database");
+
 // ---- Auth ----
 builder.Services.AddAuthentication(options =>
     {
@@ -107,6 +119,53 @@ builder.Services.AddScoped<ISubmissionRepository, SubmissionRepository>();
 builder.Services.AddScoped<ISubmissionService, SubmissionService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
+
+// ---- Rate limiting (login brute-force guard) ----
+// Only /auth/login is throttled: it is the one anonymous endpoint where repeated calls are
+// worth something to an attacker. Partitioned per remote IP so one client cannot exhaust the
+// budget for everyone. Limits are configurable so the integration suite can raise them.
+builder.Services.AddOptions<LoginRateLimitOptions>()
+    .Bind(builder.Configuration.GetSection(LoginRateLimitOptions.SectionName))
+    .ValidateDataAnnotations();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy(RateLimitPolicies.Login, httpContext =>
+    {
+        // Resolved per request rather than captured here: configuration sources layered on
+        // after this line (WebApplicationFactory in the integration suite does exactly that)
+        // would otherwise be ignored.
+        var limits = httpContext.RequestServices.GetRequiredService<IOptions<LoginRateLimitOptions>>().Value;
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = limits.PermitLimit,
+                Window = TimeSpan.FromSeconds(limits.WindowSeconds),
+                QueueLimit = 0
+            });
+    });
+
+    // Rejections bypass the MVC pipeline, so the error envelope is written here by hand to
+    // keep 429 responses shaped like every other error.
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = "application/json";
+
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            context.HttpContext.Response.Headers.RetryAfter =
+                ((int)retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        var payload = ApiResponse<object>.Fail("Too many login attempts. Please try again later.");
+        await context.HttpContext.Response.WriteAsync(
+            JsonSerializer.Serialize(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+            cancellationToken);
+    };
+});
 
 // ---- CORS (frontend dev origin) ----
 const string frontendCorsPolicy = "FrontendCors";
@@ -162,16 +221,15 @@ var app = builder.Build();
 // ---- Migrate on startup (safe/no-op if already applied) ----
 // Demo users are seeded in Development only: their passwords are published in the README,
 // so seeding outside Development would plant known admin credentials in a real database.
+
+// Migration and seeding are serialised by an advisory lock inside MigrateAndSeedAsync, so
+// concurrent start-ups (multiple replicas, or several integration-test hosts) cannot collide.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DbSeeder.MigrateAsync(db);
+    var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
 
-    if (app.Environment.IsDevelopment())
-    {
-        var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-        await DbSeeder.SeedAsync(db, passwordHasher);
-    }
+    await DbSeeder.MigrateAndSeedAsync(db, passwordHasher, app.Environment.IsDevelopment());
 }
 
 // ---- Pipeline ----
@@ -197,9 +255,14 @@ if (builder.Configuration["ASPNETCORE_HTTPS_PORTS"] is not null
 }
 
 app.UseCors(frontendCorsPolicy);
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Liveness + database readiness. Anonymous on purpose: the Docker healthcheck and any
+// upstream probe have no credentials.
+app.MapHealthChecks("/health");
 
 app.Run();
 

@@ -2,9 +2,11 @@ using System.Security.Claims;
 using AssignmentSubmissionSystem.Application.Auth;
 using AssignmentSubmissionSystem.Application.Auth.Dtos;
 using AssignmentSubmissionSystem.Application.Common;
+using AssignmentSubmissionSystem.Application.Common.Constants;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AssignmentSubmissionSystem.Api.Controllers;
 
@@ -12,6 +14,9 @@ namespace AssignmentSubmissionSystem.Api.Controllers;
 [Route("api/v1/auth")]
 public sealed class AuthController(IAuthService authService, IValidator<LoginRequestDto> loginValidator) : ControllerBase
 {
+    // Brute-force guard (see RateLimiting:Login). Exceeding the window returns 429 with the
+    // standard error envelope and a Retry-After header.
+    [EnableRateLimiting(RateLimitPolicies.Login)]
     [HttpPost("login")]
     public async Task<ActionResult<ApiResponse<LoginResponseDto>>> Login(
         [FromBody] LoginRequestDto request,

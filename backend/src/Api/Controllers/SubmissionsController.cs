@@ -22,10 +22,12 @@ public sealed class SubmissionsController(
     // Business rule §7.4: a student only ever sees their own submissions.
     [HttpGet("mine")]
     [Authorize(Roles = Roles.Student)]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<SubmissionSummaryDto>>>> GetMine(CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<SubmissionSummaryDto>>>> GetMine(
+        [FromQuery] SubmissionQuery query,
+        CancellationToken ct)
     {
-        var submissions = await submissionService.GetMineAsync(CurrentUserId, ct);
-        return Ok(ApiResponse<IReadOnlyList<SubmissionSummaryDto>>.Ok(submissions));
+        var page = await submissionService.GetMineAsync(CurrentUserId, query, ct);
+        return Ok(ApiResponse<IReadOnlyList<SubmissionSummaryDto>>.Ok(page.Items, page.ToMeta()));
     }
 
     [HttpPut("{id:guid}")]

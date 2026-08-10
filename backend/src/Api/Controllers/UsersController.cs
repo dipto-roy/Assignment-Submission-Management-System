@@ -16,11 +16,14 @@ public sealed class UsersController(
     IValidator<CreateUserDto> createValidator,
     IValidator<UpdateUserDto> updateValidator) : ControllerBase
 {
+    /// <summary>Paginated and filterable: `?role=Student&amp;search=ada&amp;page=1&amp;pageSize=20`.</summary>
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<UserSummaryDto>>>> GetAll(CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<UserSummaryDto>>>> GetAll(
+        [FromQuery] UserQuery query,
+        CancellationToken ct)
     {
-        var users = await userService.GetAllAsync(ct);
-        return Ok(ApiResponse<IReadOnlyList<UserSummaryDto>>.Ok(users));
+        var page = await userService.GetAllAsync(query, ct);
+        return Ok(ApiResponse<IReadOnlyList<UserSummaryDto>>.Ok(page.Items, page.ToMeta()));
     }
 
     [HttpGet("{id:guid}")]
