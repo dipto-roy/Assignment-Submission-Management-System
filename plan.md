@@ -185,22 +185,26 @@ EF Core Code-First → Migrations folder committed. `dotnet ef database update` 
 ## 10. Missing Work Checklist (codebase audit — 10 Aug 2026)
 
 Audit of `backend/` and `frontend/` against roadmap §3–§5 and the phases in §8.
-Phases 1–6 are done on the **backend**; the frontend stops at Phase 3.
+Phases 1–6 are done on the **backend**; the frontend has Phases 1–4/6 (admin + teacher) and stops before Phase 5.
 
-### 10.1 Frontend — Teacher domain (Phase 4/6) — **NOT STARTED**
+### 10.1 Frontend — Teacher domain (Phase 4/6) — **DONE** (10 Aug 2026)
 
-`frontend/src/app/teacher/page.tsx` is a 9-line stub (`// TODO(phase 4/6)`).
+- [x] `lib/api/assignments.ts` — typed client for `GET/POST/PUT/DELETE /assignments`, `PATCH /assignments/{id}/publish`
+- [x] `lib/api/submissions.ts` — `GET /assignments/{id}/submissions`, `PATCH /submissions/{id}/grade`, `PATCH /submissions/{id}/status` (plus the student-side calls for §10.2)
+- [x] Teacher route guard (`useRequireRole("Teacher")`) — `app/teacher/page.tsx`
+- [x] Assignment list scoped to teacher's subjects, with Draft/Published badge — `components/teacher/AssignmentsPanel.tsx`
+- [x] Create/edit assignment form: title, description, deadline, maxMarks, subject picker + client-side validation mirroring `AssignmentValidators` — `components/teacher/AssignmentForm.tsx`
+- [x] Delete assignment (surface the "blocked when submissions exist" error from the API)
+- [x] Publish / unpublish toggle
+- [x] Submissions review table per assignment (student, submittedAt, status) — `components/teacher/SubmissionsReview.tsx`
+- [x] Grade + feedback form with `marks <= maxMarks` client validation mirroring `SubmissionValidators`
+- [x] Submission status change control (Submitted / Late / Graded / Returned)
 
-- [ ] `lib/api/assignments.ts` — typed client for `GET/POST/PUT/DELETE /assignments`, `PATCH /assignments/{id}/publish`
-- [ ] `lib/api/submissions.ts` — `GET /assignments/{id}/submissions`, `PATCH /submissions/{id}/grade`, `PATCH /submissions/{id}/status`
-- [ ] Teacher route guard (`useRequireRole("Teacher")`) — currently absent on the page
-- [ ] Assignment list scoped to teacher's subjects, with Draft/Published badge
-- [ ] Create/edit assignment form: title, description, deadline, maxMarks, subject picker + client-side validation
-- [ ] Delete assignment (surface the "blocked when submissions exist" error from the API)
-- [ ] Publish / unpublish toggle
-- [ ] Submissions review table per assignment (student, submittedAt, status)
-- [ ] Grade + feedback form with `marks <= maxMarks` client validation mirroring `SubmissionValidators`
-- [ ] Submission status change control (Submitted / Late / Graded / Returned)
+Supporting work landed with this slice:
+- `lib/datetime.ts` — deadline formatting, `datetime-local` ↔ ISO conversion, remaining-time helper (reused by §10.2)
+- `lib/hooks/useTeacherSubjects.ts` — subject picker scoped to the signed-in teacher
+- `components/ui/styles.ts` — shared control classes extracted from the admin panels
+- **Backend fix:** registered `JsonStringEnumConverter` in `Program.cs`. Enums were serialized out as names but only accepted as numbers, so any client sending `"Teacher"` / `"Returned"` got a 400 — this affected `POST /users` from the existing admin UI as well as the new status endpoint.
 
 ### 10.2 Frontend — Student domain (Phase 5/6) — **NOT STARTED**
 
@@ -222,7 +226,7 @@ Phases 1–6 are done on the **backend**; the frontend stops at Phase 3.
 - [ ] No error boundary / 404 / global loading states
 - [ ] Responsive pass not done (Tailwind is wired, layouts are single-column desktop-first)
 - [ ] Admin UI has no student-enrollment management: a student's class can only be set at creation (`CreateUserDto.ClassId`); there is no re-enroll / move / unenroll surface
-- [ ] Frontend `types/index.ts` has `Assignment` / `Submission` interfaces but nothing consumes them yet
+- [x] Frontend `types/index.ts` `Assignment` / `Submission` types — realigned with the backend DTOs and consumed by the teacher dashboard (§10.1)
 
 ### 10.4 Backend gaps
 
@@ -248,7 +252,7 @@ Backend API surface matches §4 and all 10 business rules in §7 have tests (82 
 
 ### 10.6 Suggested order (deadline 14 Aug 2026)
 
-1. Teacher UI (§10.1) — largest remaining slice
+1. ~~Teacher UI (§10.1)~~ — done
 2. Student UI (§10.2) — closes the demo loop
 3. Root README + demo credentials + environment fix (§10.5) — submission blockers
 4. Frontend tests (§10.3) + coverage report (§10.4)

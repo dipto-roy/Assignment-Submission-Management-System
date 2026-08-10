@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using AssignmentSubmissionSystem.Api.Configuration;
 using AssignmentSubmissionSystem.Api.Middleware;
 using AssignmentSubmissionSystem.Application.Abstractions;
@@ -123,7 +124,12 @@ builder.Services.AddCors(options =>
 });
 
 // ---- MVC + Swagger ----
-builder.Services.AddControllers();
+// Enums are exposed as names in responses (e.g. "Published"), so accept names on the way in too.
+// Numeric values still deserialize, which keeps existing clients/tests working.
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
