@@ -43,6 +43,12 @@ export interface CreateClassInput {
   section?: string | null;
 }
 
+export interface EnrolledStudent {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export interface TeacherRef {
   id: string;
   name: string;

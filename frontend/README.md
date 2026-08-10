@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend — Assignment & Submission Management System
 
-## Getting Started
+Next.js (App Router) + React + TypeScript client for the ASP.NET Core API in `../backend`.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js 20+
+- A running API (see `../backend/README.md`, or `docker compose up` in `backend/`)
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # point NEXT_PUBLIC_API_URL at your API
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`NEXT_PUBLIC_API_URL` must include the `/api/v1` prefix and match the API's port
+(`API_PORT` in `backend/.env`, default `5000`). The API's CORS policy must allow
+`http://localhost:3000` — it does by default.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Development server |
+| `npm run build` | Production build |
+| `npm start` | Serve the production build |
+| `npm run lint` | ESLint |
+| `npm test` | Vitest (single run) |
+| `npm run test:watch` | Vitest in watch mode |
+| `npm run test:coverage` | Vitest with a V8 coverage report |
 
-## Learn More
+## Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/
+    (auth)/login/      Sign-in form
+    admin/             Users, classes, subjects, teacher assignment, enrollment
+    teacher/           Assignment CRUD, publish/draft, submissions review, grading
+    student/           Published assignments, submit/update, marks + feedback
+    layout.tsx         AuthProvider + shared nav
+    error.tsx          Route-level error boundary
+    not-found.tsx      404
+  components/
+    admin/ teacher/ student/   Feature panels
+    layout/AppNav.tsx          Role-aware nav + sign-out
+    ui/styles.ts               Shared control class strings
+  lib/
+    api/               Typed fetch client (client.ts) + per-resource modules
+    auth/              AuthContext, useRequireRole guard
+    hooks/             Shared data hooks
+    datetime.ts        Deadline formatting and remaining-time helpers
+  types/               DTOs mirroring the backend
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Auth model
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`lib/api/client.ts` stores the JWT in `localStorage` and attaches it as a bearer
+token on every request. `AuthContext` hydrates the current user from that token on
+first mount, and `useRequireRole(role)` redirects visitors who are unauthenticated
+(to `/login`) or signed in with a different role (to their own dashboard).
 
-## Deploy on Vercel
+Route guards and hidden UI are **convenience only**. Every rule — role checks,
+ownership checks, deadline enforcement, mark ceilings — is enforced by the API, and
+the UI simply surfaces the error the server returns.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Testing
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Vitest + React Testing Library, jsdom environment. Tests live next to the code they
+cover as `*.test.ts(x)`.
+
+```bash
+npm test
+npm run test:coverage
+```
+
+Covered today: the `apiFetch` envelope/error handling, token storage, `AuthContext`
+hydration and login/logout, `useRequireRole` redirects, the deadline-lock logic in
+the student submission form, and the teacher grading form's `marks <= maxMarks` rule.
+
+`vitest.setup.ts` installs a small in-memory `localStorage`, because jsdom 30 no
+longer ships a `Storage` implementation.
+
+## Known limitations
+
+- Submissions are plain text; file upload is out of scope (see plan §11).
+- No pagination or filtering yet — the API returns full collections.

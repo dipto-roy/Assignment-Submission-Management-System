@@ -66,4 +66,34 @@ public sealed class ClassesController(
         await classService.DeleteAsync(id, ct);
         return NoContent();
     }
+
+    // ---- Enrollment (Admin only) ----
+
+    [HttpGet("{id:guid}/students")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<EnrolledStudentDto>>>> GetStudents(Guid id, CancellationToken ct)
+    {
+        var students = await classService.GetStudentsAsync(id, ct);
+        return Ok(ApiResponse<IReadOnlyList<EnrolledStudentDto>>.Ok(students));
+    }
+
+    /// <summary>Enrolls a student, moving them out of any previous class (plan §11: one class per student).</summary>
+    [HttpPost("{id:guid}/students")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<ApiResponse<EnrolledStudentDto>>> EnrollStudent(
+        Guid id,
+        [FromBody] EnrollStudentDto request,
+        CancellationToken ct)
+    {
+        var enrolled = await classService.EnrollStudentAsync(id, request, ct);
+        return Ok(ApiResponse<EnrolledStudentDto>.Ok(enrolled));
+    }
+
+    [HttpDelete("{id:guid}/students/{studentId:guid}")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<IActionResult> UnenrollStudent(Guid id, Guid studentId, CancellationToken ct)
+    {
+        await classService.UnenrollStudentAsync(id, studentId, ct);
+        return NoContent();
+    }
 }

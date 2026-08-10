@@ -3,6 +3,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createClass, deleteClass, getClasses } from "@/lib/api/admin";
 import type { SchoolClass } from "@/types";
+import {
+  dangerButtonClass,
+  inputClass,
+  mutedTextClass,
+  primaryButtonClass,
+} from "@/components/ui/styles";
 
 export function ClassesPanel() {
   const [classes, setClasses] = useState<SchoolClass[]>([]);
@@ -50,15 +56,15 @@ export function ClassesPanel() {
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="rounded border border-black/20 px-2 py-1 text-sm dark:border-white/20 dark:bg-transparent"
+          className={inputClass}
         />
         <input
           placeholder="Section (e.g. A)"
           value={section}
           onChange={(e) => setSection(e.target.value)}
-          className="rounded border border-black/20 px-2 py-1 text-sm dark:border-white/20 dark:bg-transparent"
+          className={inputClass}
         />
-        <button type="submit" className="rounded bg-black px-3 py-1 text-sm text-white dark:bg-white dark:text-black">
+        <button type="submit" className={primaryButtonClass}>
           Add
         </button>
       </form>
@@ -66,21 +72,21 @@ export function ClassesPanel() {
       {error && <p role="alert" className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       {isLoading ? (
-        <p className="text-sm text-black/60 dark:text-white/60">Loading…</p>
+        <p className={mutedTextClass}>Loading…</p>
       ) : (
         <ul className="divide-y divide-black/10 dark:divide-white/10">
           {classes.map((c) => (
-            <li key={c.id} className="flex items-center justify-between py-2 text-sm">
+            <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
               <span>
                 {c.name}
                 {c.section ? ` — ${c.section}` : ""}
               </span>
-              <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:underline dark:text-red-400">
+              <button onClick={() => handleDelete(c.id)} className={dangerButtonClass}>
                 Delete
               </button>
             </li>
           ))}
-          {classes.length === 0 && <li className="py-2 text-sm text-black/60 dark:text-white/60">No classes yet.</li>}
+          {classes.length === 0 && <li className={`py-2 ${mutedTextClass}`}>No classes yet.</li>}
         </ul>
       )}
     </section>

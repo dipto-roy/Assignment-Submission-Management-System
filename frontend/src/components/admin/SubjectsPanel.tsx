@@ -4,6 +4,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { assignTeacher, createSubject, deleteSubject, getSubjects, getUsers } from "@/lib/api/admin";
 import { useClasses } from "@/lib/hooks/useClasses";
 import type { Subject, UserSummary } from "@/types";
+import {
+  dangerButtonClass,
+  inputClass,
+  mutedTextClass,
+  primaryButtonClass,
+} from "@/components/ui/styles";
 
 export function SubjectsPanel() {
   const { classes } = useClasses();
@@ -60,9 +66,6 @@ export function SubjectsPanel() {
     }
   };
 
-  const inputClass =
-    "rounded border border-black/20 px-2 py-1 text-sm dark:border-white/20 dark:bg-transparent";
-
   return (
     <section>
       <h2 className="mb-3 text-lg font-semibold">Subjects</h2>
@@ -79,7 +82,7 @@ export function SubjectsPanel() {
             </option>
           ))}
         </select>
-        <button type="submit" className="rounded bg-black px-3 py-1 text-sm text-white dark:bg-white dark:text-black">
+        <button type="submit" className={primaryButtonClass}>
           Add
         </button>
       </form>
@@ -87,7 +90,7 @@ export function SubjectsPanel() {
       {error && <p role="alert" className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       {isLoading ? (
-        <p className="text-sm text-black/60 dark:text-white/60">Loading…</p>
+        <p className={mutedTextClass}>Loading…</p>
       ) : (
         <ul className="divide-y divide-black/10 dark:divide-white/10">
           {subjects.map((s) => (
@@ -118,13 +121,13 @@ export function SubjectsPanel() {
                 <button onClick={() => handleAssign(s.id)} className="text-sm underline">
                   Assign
                 </button>
-                <button onClick={() => handleDelete(s.id)} className="text-red-600 hover:underline dark:text-red-400">
+                <button onClick={() => handleDelete(s.id)} className={dangerButtonClass}>
                   Delete
                 </button>
               </span>
             </li>
           ))}
-          {subjects.length === 0 && <li className="py-2 text-sm text-black/60 dark:text-white/60">No subjects yet.</li>}
+          {subjects.length === 0 && <li className={`py-2 ${mutedTextClass}`}>No subjects yet.</li>}
         </ul>
       )}
     </section>

@@ -218,22 +218,30 @@ Supporting work landed with this slice:
 The dashboard owns both lists and joins them by `assignmentId`, so a save updates
 the assignment card and the marks/feedback table together.
 
-### 10.3 Frontend — cross-cutting
+### 10.3 Frontend — cross-cutting — **DONE** (10 Aug 2026)
 
-- [ ] **No frontend tests exist.** `frontend/package.json` has no Jest/Vitest/RTL dependency and no `test` script (plan §8 Phase 7 requires them). Add runner + tests for `apiFetch` envelope/error handling, `AuthContext`, `useRequireRole` redirects, and the deadline-lock logic.
-- [ ] `frontend/README.md` is still the unmodified `create-next-app` boilerplate
-- [ ] No `frontend/.env.example` — `NEXT_PUBLIC_API_URL` is only documented inside `backend/.env.example`
-- [ ] No shared nav/layout or sign-out outside the admin page; `app/layout.tsx` has no role-based nav guard (plan §5 calls for one)
-- [ ] No error boundary / 404 / global loading states
-- [ ] Responsive pass not done (Tailwind is wired, layouts are single-column desktop-first)
-- [ ] Admin UI has no student-enrollment management: a student's class can only be set at creation (`CreateUserDto.ClassId`); there is no re-enroll / move / unenroll surface
+- [x] **Frontend test runner + tests.** Vitest + React Testing Library (jsdom), `npm test` / `npm run test:coverage`. 57 tests across `apiFetch` envelope + error handling + token storage, `AuthContext` hydration/login/logout, `useRequireRole` redirects, `datetime` deadline helpers, the student deadline-lock, the teacher grading form's `marks <= maxMarks` rule, and `AssignmentForm` validation.
+  `vitest.setup.ts` installs an in-memory `localStorage` because jsdom 30 no longer ships a `Storage` implementation.
+- [x] `frontend/README.md` rewritten — setup, scripts, structure, auth model, testing, known limitations
+- [x] `frontend/.env.example` added (`NEXT_PUBLIC_API_URL`)
+- [x] Shared nav + role-based nav guard — `components/layout/AppNav.tsx`, rendered from `app/layout.tsx`; per-page sign-out buttons removed in favour of it
+- [x] Error boundary / 404 / global loading — `app/error.tsx`, `app/not-found.tsx`, `app/loading.tsx`
+- [x] Responsive pass — dashboards use `p-4 sm:p-8`, admin rows wrap, wide tables scroll inside `overflow-x-auto`, forms use `flex-wrap` / `sm:grid-cols-2`
+- [x] Admin student-enrollment management — `components/admin/EnrollmentPanel.tsx` (roster per class, enroll/move, unenroll), backed by the new endpoints in §10.4
 - [x] Frontend `types/index.ts` `Assignment` / `Submission` types — realigned with the backend DTOs and consumed by the teacher dashboard (§10.1)
+
+Coverage today is 39% overall, but that number is dominated by presentational
+panels. The business-rule modules the plan cares about sit well above the §8 Phase 7
+bar: `client.ts` 96%, `AuthContext.tsx` 97%, `useRequireRole` 100%, `datetime.ts` 97%,
+`SubmissionForm` 97%, `SubmissionsReview` 92%, `AssignmentForm` 92%. The thin
+per-resource API modules (`admin.ts`, `assignments.ts`, `submissions.ts`) are
+one-line `apiFetch` wrappers with no logic and are exercised through the components.
 
 ### 10.4 Backend gaps
 
 Backend API surface matches §4 and all 10 business rules in §7 have tests (82 `[Fact]`/`[Theory]` across unit + integration).
 
-- [ ] **No enrollment endpoints.** `StudentClass` rows are only created via `POST /users` with `ClassId`. Missing: `GET /classes/{id}/students`, enroll/unenroll. Needed to back §10.3's admin UI.
+- [x] **Enrollment endpoints** — `GET /classes/{id}/students`, `POST /classes/{id}/students`, `DELETE /classes/{id}/students/{studentId}` (all Admin-only). Enrolling *moves* the student, since plan §11 assumes one class per student. Covered by 6 new unit tests.
 - [ ] `POST /auth/register` from §4 is intentionally not implemented (admin-only creation via `POST /users`) — **document this in the README** rather than leaving §4 stale
 - [ ] No pagination or filtering anywhere (`grep Skip(/Take(` → zero hits). Roadmap §4 "Optional Additions" + plan §8 Phase 8.
 - [ ] No notifications (optional)
@@ -255,8 +263,8 @@ Backend API surface matches §4 and all 10 business rules in §7 have tests (82 
 
 1. ~~Teacher UI (§10.1)~~ — done
 2. ~~Student UI (§10.2)~~ — done
-3. Root README + demo credentials + environment fix (§10.5) — submission blockers
-4. Frontend tests (§10.3) + coverage report (§10.4)
+3. Root README + demo credentials + environment fix (§10.5) — **the remaining submission blockers**
+4. ~~Frontend tests (§10.3)~~ — done; backend coverage report (§10.4) still open
 5. Optional extras: pagination, filtering, frontend Docker service, CI
 
 ---

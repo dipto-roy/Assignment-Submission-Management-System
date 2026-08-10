@@ -4,6 +4,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createUser, deleteUser, getUsers } from "@/lib/api/admin";
 import { useClasses } from "@/lib/hooks/useClasses";
 import type { UserRole, UserSummary } from "@/types";
+import {
+  dangerButtonClass,
+  inputClass,
+  mutedTextClass,
+  primaryButtonClass,
+} from "@/components/ui/styles";
 
 const ROLES: UserRole[] = ["Admin", "Teacher", "Student"];
 
@@ -55,9 +61,6 @@ export function UsersPanel() {
     }
   };
 
-  const inputClass =
-    "rounded border border-black/20 px-2 py-1 text-sm dark:border-white/20 dark:bg-transparent";
-
   return (
     <section>
       <h2 className="mb-3 text-lg font-semibold">Users</h2>
@@ -99,7 +102,7 @@ export function UsersPanel() {
             ))}
           </select>
         )}
-        <button type="submit" className="rounded bg-black px-3 py-1 text-sm text-white dark:bg-white dark:text-black">
+        <button type="submit" className={primaryButtonClass}>
           Add
         </button>
       </form>
@@ -107,20 +110,20 @@ export function UsersPanel() {
       {error && <p role="alert" className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       {isLoading ? (
-        <p className="text-sm text-black/60 dark:text-white/60">Loading…</p>
+        <p className={mutedTextClass}>Loading…</p>
       ) : (
         <ul className="divide-y divide-black/10 dark:divide-white/10">
           {users.map((u) => (
-            <li key={u.id} className="flex items-center justify-between py-2 text-sm">
+            <li key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
               <span>
                 {u.name} <span className="text-black/50 dark:text-white/50">({u.role}) — {u.email}</span>
               </span>
-              <button onClick={() => handleDelete(u.id)} className="text-red-600 hover:underline dark:text-red-400">
+              <button onClick={() => handleDelete(u.id)} className={dangerButtonClass}>
                 Delete
               </button>
             </li>
           ))}
-          {users.length === 0 && <li className="py-2 text-sm text-black/60 dark:text-white/60">No users yet.</li>}
+          {users.length === 0 && <li className={`py-2 ${mutedTextClass}`}>No users yet.</li>}
         </ul>
       )}
     </section>
