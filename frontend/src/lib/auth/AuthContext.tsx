@@ -20,16 +20,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
+    let isActive = true;
 
-    fetchCurrentUser()
-      .then(setUser)
-      .catch(() => clearToken())
-      .finally(() => setIsLoading(false));
+    // Resolved in a callback rather than synchronously so the first render is not
+    // immediately followed by a cascading state update.
+    const hydrate = async (): Promise<User | null> => {
+      if (!getToken()) return null;
+
+      try {
+        return await fetchCurrentUser();
+      } catch {
+        clearToken();
+        return null;
+      }
+    };
+
+    hydrate().then((hydratedUser) => {
+      if (!isActive) return;
+      setUser(hydratedUser);
+      setIsLoading(false);
+    });
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<User> => {

@@ -3,6 +3,7 @@ import type {
   CreateClassInput,
   CreateSubjectInput,
   CreateUserInput,
+  EnrolledStudent,
   SchoolClass,
   Subject,
   UpdateUserInput,
@@ -22,6 +23,17 @@ export const getClasses = () => apiFetch<SchoolClass[]>("/classes");
 export const createClass = (input: CreateClassInput) =>
   apiFetch<SchoolClass>("/classes", { method: "POST", body: input });
 export const deleteClass = (id: string) => apiFetch<void>(`/classes/${id}`, { method: "DELETE" });
+
+// ---- Enrollment ----
+export const getClassStudents = (classId: string) =>
+  apiFetch<EnrolledStudent[]>(`/classes/${classId}/students`);
+
+/** Enrolling moves the student out of any class they were previously in (plan §11). */
+export const enrollStudent = (classId: string, studentId: string) =>
+  apiFetch<EnrolledStudent>(`/classes/${classId}/students`, { method: "POST", body: { studentId } });
+
+export const unenrollStudent = (classId: string, studentId: string) =>
+  apiFetch<void>(`/classes/${classId}/students/${studentId}`, { method: "DELETE" });
 
 // ---- Subjects ----
 export const getSubjects = () => apiFetch<Subject[]>("/subjects");

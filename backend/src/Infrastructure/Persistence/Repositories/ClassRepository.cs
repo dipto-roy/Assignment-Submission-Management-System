@@ -12,6 +12,36 @@ public sealed class ClassRepository(AppDbContext db) : IClassRepository
     public async Task<IReadOnlyList<SchoolClass>> FindAllAsync(CancellationToken cancellationToken) =>
         await db.Classes.AsNoTracking().OrderBy(c => c.Name).ThenBy(c => c.Section).ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<User>> FindStudentsAsync(Guid classId, CancellationToken cancellationToken) =>
+        await db.StudentClasses
+            .AsNoTracking()
+            .Where(sc => sc.ClassId == classId)
+            .Select(sc => sc.Student)
+            .OrderBy(u => u.Name)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<StudentClass>> FindEnrollmentsByStudentAsync(Guid studentId, CancellationToken cancellationToken) =>
+        await db.StudentClasses.Where(sc => sc.StudentId == studentId).ToListAsync(cancellationToken);
+
+    // Plan §11 assumes a student belongs to exactly one class, so enrolling moves them.
+    public async Task EnrollStudentAsync(Guid classId, Guid studentId, CancellationToken cancellationToken)
+    {
+        var existing = await db.StudentClasses
+            .Where(sc => sc.StudentId == studentId)
+            .ToListAsync(cancellationToken);
+
+        db.StudentClasses.RemoveRange(existing);
+        db.StudentClasses.Add(new StudentClass { ClassId = classId, StudentId = studentId });
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveEnrollmentAsync(StudentClass enrollment, CancellationToken cancellationToken)
+    {
+        db.StudentClasses.Remove(enrollment);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task AddAsync(SchoolClass schoolClass, CancellationToken cancellationToken)
     {
         db.Classes.Add(schoolClass);

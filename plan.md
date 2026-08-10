@@ -182,7 +182,94 @@ EF Core Code-First → Migrations folder committed. `dotnet ef database update` 
 
 ---
 
-## 10. Open Assumptions (to confirm/document in README)
+## 10. Missing Work Checklist (codebase audit — 10 Aug 2026)
+
+Audit of `backend/` and `frontend/` against roadmap §3–§5 and the phases in §8.
+Phases 1–6 are done on the **backend** and, as of 10 Aug 2026, on the **frontend** as well (admin + teacher + student). Remaining work is Phases 7–9: tests, polish, packaging.
+
+### 10.1 Frontend — Teacher domain (Phase 4/6) — **DONE** (10 Aug 2026)
+
+- [x] `lib/api/assignments.ts` — typed client for `GET/POST/PUT/DELETE /assignments`, `PATCH /assignments/{id}/publish`
+- [x] `lib/api/submissions.ts` — `GET /assignments/{id}/submissions`, `PATCH /submissions/{id}/grade`, `PATCH /submissions/{id}/status` (plus the student-side calls for §10.2)
+- [x] Teacher route guard (`useRequireRole("Teacher")`) — `app/teacher/page.tsx`
+- [x] Assignment list scoped to teacher's subjects, with Draft/Published badge — `components/teacher/AssignmentsPanel.tsx`
+- [x] Create/edit assignment form: title, description, deadline, maxMarks, subject picker + client-side validation mirroring `AssignmentValidators` — `components/teacher/AssignmentForm.tsx`
+- [x] Delete assignment (surface the "blocked when submissions exist" error from the API)
+- [x] Publish / unpublish toggle
+- [x] Submissions review table per assignment (student, submittedAt, status) — `components/teacher/SubmissionsReview.tsx`
+- [x] Grade + feedback form with `marks <= maxMarks` client validation mirroring `SubmissionValidators`
+- [x] Submission status change control (Submitted / Late / Graded / Returned)
+
+Supporting work landed with this slice:
+- `lib/datetime.ts` — deadline formatting, `datetime-local` ↔ ISO conversion, remaining-time helper (reused by §10.2)
+- `lib/hooks/useTeacherSubjects.ts` — subject picker scoped to the signed-in teacher
+- `components/ui/styles.ts` — shared control classes extracted from the admin panels
+- **Backend fix:** registered `JsonStringEnumConverter` in `Program.cs`. Enums were serialized out as names but only accepted as numbers, so any client sending `"Teacher"` / `"Returned"` got a 400 — this affected `POST /users` from the existing admin UI as well as the new status endpoint.
+
+### 10.2 Frontend — Student domain (Phase 5/6) — **DONE** (10 Aug 2026)
+
+- [x] Student route guard (`useRequireRole("Student")`) — `app/student/page.tsx`
+- [x] Published-assignment list for the student's class — `components/student/StudentDashboard.tsx`; Draft never appears because `GET /assignments` is filtered server-side (`FindPublishedForStudentAsync`, business rule §7.3)
+- [x] Assignment detail view: description, deadline, maxMarks, remaining-time indicator — `components/student/AssignmentCard.tsx`
+- [x] Submit answer form (text content per §11 assumption) + validation — `components/student/SubmissionForm.tsx`
+- [x] Update submission before deadline; UI locked after deadline with a clear reason (mirrors §7.1/§7.2, still enforced server-side)
+- [x] `GET /submissions/mine` view — status, marks, teacher feedback — `components/student/MySubmissionsPanel.tsx`
+
+The dashboard owns both lists and joins them by `assignmentId`, so a save updates
+the assignment card and the marks/feedback table together.
+
+### 10.3 Frontend — cross-cutting — **DONE** (10 Aug 2026)
+
+- [x] **Frontend test runner + tests.** Vitest + React Testing Library (jsdom), `npm test` / `npm run test:coverage`. 57 tests across `apiFetch` envelope + error handling + token storage, `AuthContext` hydration/login/logout, `useRequireRole` redirects, `datetime` deadline helpers, the student deadline-lock, the teacher grading form's `marks <= maxMarks` rule, and `AssignmentForm` validation.
+  `vitest.setup.ts` installs an in-memory `localStorage` because jsdom 30 no longer ships a `Storage` implementation.
+- [x] `frontend/README.md` rewritten — setup, scripts, structure, auth model, testing, known limitations
+- [x] `frontend/.env.example` added (`NEXT_PUBLIC_API_URL`)
+- [x] Shared nav + role-based nav guard — `components/layout/AppNav.tsx`, rendered from `app/layout.tsx`; per-page sign-out buttons removed in favour of it
+- [x] Error boundary / 404 / global loading — `app/error.tsx`, `app/not-found.tsx`, `app/loading.tsx`
+- [x] Responsive pass — dashboards use `p-4 sm:p-8`, admin rows wrap, wide tables scroll inside `overflow-x-auto`, forms use `flex-wrap` / `sm:grid-cols-2`
+- [x] Admin student-enrollment management — `components/admin/EnrollmentPanel.tsx` (roster per class, enroll/move, unenroll), backed by the new endpoints in §10.4
+- [x] Frontend `types/index.ts` `Assignment` / `Submission` types — realigned with the backend DTOs and consumed by the teacher dashboard (§10.1)
+
+Coverage today is 39% overall, but that number is dominated by presentational
+panels. The business-rule modules the plan cares about sit well above the §8 Phase 7
+bar: `client.ts` 96%, `AuthContext.tsx` 97%, `useRequireRole` 100%, `datetime.ts` 97%,
+`SubmissionForm` 97%, `SubmissionsReview` 92%, `AssignmentForm` 92%. The thin
+per-resource API modules (`admin.ts`, `assignments.ts`, `submissions.ts`) are
+one-line `apiFetch` wrappers with no logic and are exercised through the components.
+
+### 10.4 Backend gaps
+
+Backend API surface matches §4 and all 10 business rules in §7 have tests (82 `[Fact]`/`[Theory]` across unit + integration).
+
+- [x] **Enrollment endpoints** — `GET /classes/{id}/students`, `POST /classes/{id}/students`, `DELETE /classes/{id}/students/{studentId}` (all Admin-only). Enrolling *moves* the student, since plan §11 assumes one class per student. Covered by 6 new unit tests.
+- [ ] `POST /auth/register` from §4 is intentionally not implemented (admin-only creation via `POST /users`) — **document this in the README** rather than leaving §4 stale
+- [ ] No pagination or filtering anywhere (`grep Skip(/Take(` → zero hits). Roadmap §4 "Optional Additions" + plan §8 Phase 8.
+- [ ] No notifications (optional)
+- [ ] No health-check endpoint for compose `depends_on` / evaluator smoke test
+- [ ] No rate limiting on `/auth/login`
+- [ ] Test coverage figure is unmeasured — no coverage run/report to back the "80%+" claim in §8 Phase 7
+
+### 10.5 Packaging & submission blockers (roadmap §4–§5)
+
+- [ ] **No root `README.md`** — the single most-weighted deliverable. Needs: overview, features, stack, structure, setup, DB setup, frontend run, backend run, test instructions, assumptions, known limitations.
+- [ ] **Demo credentials not documented outside code.** They live only in the `DbSeeder` XML comment (`admin@lms.test` / `teacher@lms.test` / `student@lms.test`). Roadmap §4 wants a table.
+- [ ] **Seeding + Swagger are Development-only** (`Program.cs` lines ~165, ~172) while `docker-compose.yml` defaults `ASPNETCORE_ENVIRONMENT` to `Production`. An evaluator who copies `.env.example` without setting it gets **no demo users and no Swagger UI**. Either default compose to Development or make the README explicit.
+- [ ] No frontend `Dockerfile` / no `frontend` service in `docker-compose.yml` — compose only brings up `postgres` + `api`, so "one command to run the project" is not true yet
+- [ ] No DB script/backup fallback for evaluators who cannot run `dotnet ef` (migrations exist and run on startup, so this is optional — decide and document)
+- [ ] No CI workflow (`.github/` absent) — optional, but a green build badge is cheap credibility
+- [ ] Final pass on roadmap §5 checklist: verify no secrets committed (`backend/.env` holds a real `Jwt__Key` and is gitignored — confirm it never entered history)
+
+### 10.6 Suggested order (deadline 14 Aug 2026)
+
+1. ~~Teacher UI (§10.1)~~ — done
+2. ~~Student UI (§10.2)~~ — done
+3. Root README + demo credentials + environment fix (§10.5) — **the remaining submission blockers**
+4. ~~Frontend tests (§10.3)~~ — done; backend coverage report (§10.4) still open
+5. Optional extras: pagination, filtering, frontend Docker service, CI
+
+---
+
+## 11. Open Assumptions (to confirm/document in README)
 
 - Submission = text content (not file upload) unless file upload explicitly wanted — keep scope lean, note as assumption; file upload listed as stretch goal.
 - One student belongs to exactly one class; one subject belongs to exactly one class; one teacher can teach multiple subjects.

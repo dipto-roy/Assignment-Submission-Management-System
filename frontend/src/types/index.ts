@@ -43,6 +43,12 @@ export interface CreateClassInput {
   section?: string | null;
 }
 
+export interface EnrolledStudent {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export interface TeacherRef {
   id: string;
   name: string;
@@ -72,19 +78,50 @@ export interface Assignment {
   maxMarks: number;
   status: AssignmentStatus;
   subjectId: string;
+  subjectName: string;
+  classId: string;
+  className: string;
   teacherId: string;
+  teacherName: string;
+  createdAt: string;
+  updatedAt?: string | null;
 }
+
+export interface CreateAssignmentInput {
+  title: string;
+  description: string;
+  deadline: string; // ISO 8601 (UTC)
+  maxMarks: number;
+  subjectId: string;
+}
+
+export type UpdateAssignmentInput = Omit<CreateAssignmentInput, "subjectId">;
 
 export interface Submission {
   id: string;
   assignmentId: string;
+  assignmentTitle: string;
+  assignmentDeadline: string;
   studentId: string;
   content: string;
   status: SubmissionStatus;
-  marks?: number;
-  feedback?: string;
+  marks?: number | null;
+  feedback?: string | null;
   submittedAt: string;
-  updatedAt?: string;
+  updatedAt?: string | null;
+  gradedAt?: string | null;
+}
+
+/** Teacher/Admin review view — adds student identity and the assignment's mark ceiling. */
+export interface SubmissionDetail extends Submission {
+  assignmentMaxMarks: number;
+  studentName: string;
+  studentEmail: string;
+}
+
+export interface GradeSubmissionInput {
+  marks: number;
+  feedback?: string | null;
 }
 
 // Consistent API envelope (see rules/patterns.md — API Response Format).
