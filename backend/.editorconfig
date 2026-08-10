@@ -1,0 +1,75 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{cs,csx}]
+indent_size = 4
+
+[*.{csproj,props,targets,json,yml,yaml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# ---------------------------------------------------------------------------
+# C# analyzer configuration
+# ---------------------------------------------------------------------------
+[*.cs]
+
+# CA1000: Do not declare static members on generic types.
+# Suppressed deliberately. ApiResponse<T>.Ok/.Fail are the project's standard result
+# factories; the explicit type argument at the call site is intentional and reads better
+# than a parallel non-generic helper class. Revisit only if the envelope type changes.
+dotnet_diagnostic.CA1000.severity = none
+
+# Prefer file-scoped namespaces, matching the existing codebase.
+csharp_style_namespace_declarations = file_scoped:warning
+
+# `var` only where the type is already obvious from the right-hand side.
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_elsewhere = false:suggestion
+
+# Modern C# expression preferences.
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_prefer_primary_constructors = false:none
+csharp_prefer_braces = true:warning
+
+# Ordering and cleanliness of using directives.
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+[tests/**/*.cs]
+
+# CA1707: Remove underscores from member names.
+# Test methods intentionally use Method_Behavior_Condition naming, which is the readable
+# convention for xUnit and is applied consistently across the suite.
+dotnet_diagnostic.CA1707.severity = none
+
+# ---------------------------------------------------------------------------
+# EF Core generated migrations are not hand-maintained source.
+# ---------------------------------------------------------------------------
+[src/Infrastructure/Persistence/Migrations/*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none
+
+# ---------------------------------------------------------------------------
+# EF Core repositories
+# ---------------------------------------------------------------------------
+[src/Infrastructure/Persistence/Repositories/*.cs]
+
+# CA1862: Prefer string.Equals(..., StringComparison) for case-insensitive comparison.
+# Suppressed deliberately. These comparisons live inside LINQ expression trees that EF Core
+# translates to SQL. `ToLower()` becomes SQL LOWER(); `string.Equals` with a StringComparison
+# has no SQL translation and EF Core throws "The LINQ expression could not be translated"
+# at runtime. Applying this rule here would turn working queries into runtime failures.
+dotnet_diagnostic.CA1862.severity = none

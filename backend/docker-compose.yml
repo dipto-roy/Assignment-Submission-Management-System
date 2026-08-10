@@ -1,7 +1,14 @@
+# Pinned so the project name is not derived from the directory name ("backend"), which
+# collides with unrelated compose stacks that also live in a directory called "backend"
+# and would share this project's network, volumes and teardown scope.
+# No `container_name` on the services: a fixed container name is global to the daemon, so it
+# conflicts with any other stack (or an older run of this one) that claims the same name.
+# Compose-generated names (assignment-submission-postgres-1) are scoped to the project instead.
+name: assignment-submission
+
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: assignment_submission_db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-assignment_submission_dev}
@@ -21,7 +28,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: assignment_submission_api
     restart: unless-stopped
     depends_on:
       postgres:

@@ -1,4 +1,5 @@
 using System.Text;
+using AssignmentSubmissionSystem.Api.Configuration;
 using AssignmentSubmissionSystem.Api.Middleware;
 using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Assignments;
@@ -20,6 +21,11 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ---- Local .env support ----
+// docker-compose reads .env itself; this makes `dotnet run` read the same file.
+// Real environment variables still take precedence over the file.
+builder.Configuration.AddDotEnvFile(builder.Environment.ContentRootPath);
+
 // ---- Logging (Serilog) ----
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
@@ -29,10 +35,24 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 // ---- Options ----
 builder.Services.AddOptions<JwtOptions>()
     .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
-    .ValidateDataAnnotations();
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
+// Bound a second time because the JWT bearer handler below needs the values during
+// service registration, before the options system is available. `Get<T>()` bypasses the
+// validation configured above, so the same rules are asserted explicitly here — otherwise a
+// missing or short key surfaces as an opaque cryptographic error instead of a clear one.
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
-    ?? throw new InvalidOperationException("Jwt configuration section is missing.");
+    ?? throw new InvalidOperationException(
+        "Jwt configuration section is missing. Set Jwt__Key, Jwt__Issuer and Jwt__Audience "
+        + "(see .env.example).");
+
+if (string.IsNullOrWhiteSpace(jwtOptions.Key) || jwtOptions.Key.Length < JwtOptions.MinimumKeyLength)
+{
+    throw new InvalidOperationException(
+        $"Jwt:Key must be at least {JwtOptions.MinimumKeyLength} characters (256 bits) for HMAC-SHA256. "
+        + "Set Jwt__Key in the environment or .env file.");
+}
 
 // ---- Database ----
 var connectionString = builder.Configuration.GetConnectionString("Default")
@@ -133,12 +153,19 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// ---- Migrate + seed on startup (dev convenience; safe/no-op if already applied) ----
+// ---- Migrate on startup (safe/no-op if already applied) ----
+// Demo users are seeded in Development only: their passwords are published in the README,
+// so seeding outside Development would plant known admin credentials in a real database.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-    await DbSeeder.SeedAsync(db, passwordHasher);
+    await DbSeeder.MigrateAsync(db);
+
+    if (app.Environment.IsDevelopment())
+    {
+        var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+        await DbSeeder.SeedAsync(db, passwordHasher);
+    }
 }
 
 // ---- Pipeline ----
@@ -152,7 +179,17 @@ if (app.Environment.IsDevelopment())
 // (401/404/etc.) instead of the raw 500 it would see if an exception passed through it unhandled.
 app.UseSerilogRequestLogging();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
-app.UseHttpsRedirection();
+
+// Only redirect when an HTTPS endpoint actually exists. In the container the app listens on
+// http://+:8080 only and TLS terminates upstream, where this middleware cannot resolve a
+// target port and logs a warning on every request instead of redirecting.
+if (builder.Configuration["ASPNETCORE_HTTPS_PORTS"] is not null
+    || builder.Configuration["HTTPS_PORT"] is not null
+    || app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseCors(frontendCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();

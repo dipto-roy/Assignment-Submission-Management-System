@@ -11,13 +11,15 @@ namespace AssignmentSubmissionSystem.Infrastructure.Persistence;
 ///   Admin:   admin@lms.test   / Admin@12345
 ///   Teacher: teacher@lms.test / Teacher@12345
 ///   Student: student@lms.test / Student@12345
+/// The passwords are public, so <see cref="SeedAsync"/> must only ever run in Development.
+/// Migration is kept separate so non-development environments can apply schema without demo users.
 /// </summary>
 public static class DbSeeder
 {
+    public static Task MigrateAsync(AppDbContext db) => db.Database.MigrateAsync();
+
     public static async Task SeedAsync(AppDbContext db, IPasswordHasher passwordHasher)
     {
-        await db.Database.MigrateAsync();
-
         if (await db.Users.AnyAsync())
         {
             return; // already seeded

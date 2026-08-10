@@ -1,0 +1,28 @@
+<Project>
+
+  <!--
+    Shared build settings for every project in the solution.
+    Individual .csproj files should only declare what is genuinely project-specific
+    (package references, project references, SDK type).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!--
+      Keep the build honest: compiler warnings are defects, not decoration.
+      AnalysisLevel is deliberately left at the SDK default. 'latest-recommended' was tried
+      and rejected: it forces CA1707 (no underscores in member names), which contradicts the
+      Method_Behavior_Condition xUnit naming used throughout tests/, and CA1848, which would
+      require LoggerMessage delegates for a handful of cold-path error logs.
+    -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+</Project>
