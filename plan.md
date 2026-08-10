@@ -237,17 +237,22 @@ bar: `client.ts` 96%, `AuthContext.tsx` 97%, `useRequireRole` 100%, `datetime.ts
 per-resource API modules (`admin.ts`, `assignments.ts`, `submissions.ts`) are
 one-line `apiFetch` wrappers with no logic and are exercised through the components.
 
-### 10.4 Backend gaps
+### 10.4 Backend gaps — **DONE** (10 Aug 2026, except notifications)
 
-Backend API surface matches §4 and all 10 business rules in §7 have tests (82 `[Fact]`/`[Theory]` across unit + integration).
+Backend API surface matches §4 and all 10 business rules in §7 have tests (114 `[Fact]`/`[Theory]` across unit + integration).
 
 - [x] **Enrollment endpoints** — `GET /classes/{id}/students`, `POST /classes/{id}/students`, `DELETE /classes/{id}/students/{studentId}` (all Admin-only). Enrolling *moves* the student, since plan §11 assumes one class per student. Covered by 6 new unit tests.
-- [ ] `POST /auth/register` from §4 is intentionally not implemented (admin-only creation via `POST /users`) — **document this in the README** rather than leaving §4 stale
-- [ ] No pagination or filtering anywhere (`grep Skip(/Take(` → zero hits). Roadmap §4 "Optional Additions" + plan §8 Phase 8.
-- [ ] No notifications (optional)
-- [ ] No health-check endpoint for compose `depends_on` / evaluator smoke test
-- [ ] No rate limiting on `/auth/login`
-- [ ] Test coverage figure is unmeasured — no coverage run/report to back the "80%+" claim in §8 Phase 7
+- [x] `POST /auth/register` from §4 is intentionally not implemented (admin-only creation via `POST /users`) — documented under "Registration" in `backend/README.md`
+- [x] **Pagination + filtering** on all four list endpoints (`GET /users`, `GET /assignments`, `GET /assignments/{id}/submissions`, `GET /submissions/mine`). `?page=`/`?pageSize=` (default 20, max 100, out-of-range clamped) translated to SQL `COUNT` + `OFFSET`/`LIMIT` via `PageQuery`/`PagedResult<T>` + `QueryablePagingExtensions`. Page totals ride in the envelope's `meta` (`total`, `page`, `pageSize`, `totalPages`) so `data` stays shape-compatible. Filters: users by `role`/`search`, assignments by `status`/`subjectId`/`classId`/`search`, submissions by `status` — applied *after* the role scope, so a student's `?status=Draft` returns an empty page rather than another student's drafts (§7.3).
+- [x] **Health-check endpoint** — anonymous `GET /health` with `AddDbContextCheck`, wired as the `api` service healthcheck in `docker-compose.yml` (busybox `wget` + `grep Healthy`)
+- [x] **Rate limiting on `/auth/login`** — fixed window per client IP (10/60s, configurable via `RateLimiting__Login__*`), 429 + `Retry-After` in the standard error envelope. Options are resolved per request, not captured at registration, so later configuration layers (the integration factory) take effect.
+- [x] **Test coverage measured** — `backend/scripts/coverage.sh` runs both projects with Cobertura collection and prints a per-assembly summary: Application 98.0%, Domain 96.5%, Api 87.6%, Infrastructure 78.0%, **total 90.1%** across 114 passing tests. Clears the §8 Phase 7 bar.
+- [ ] No notifications — optional in roadmap §4, deliberately out of scope for the deadline
+
+Frontend follow-through (the API default page size would otherwise have truncated every list at 20):
+`lib/api/query.ts` adds `toQueryString` + a `FULL_PAGE` default, and `getUsers` / `getAssignments` /
+`getAssignmentSubmissions` / `getMySubmissions` now request `pageSize=100` and accept optional
+filters. 5 new frontend tests (62 total).
 
 ### 10.5 Packaging & submission blockers (roadmap §4–§5)
 
@@ -264,8 +269,8 @@ Backend API surface matches §4 and all 10 business rules in §7 have tests (82 
 1. ~~Teacher UI (§10.1)~~ — done
 2. ~~Student UI (§10.2)~~ — done
 3. Root README + demo credentials + environment fix (§10.5) — **the remaining submission blockers**
-4. ~~Frontend tests (§10.3)~~ — done; backend coverage report (§10.4) still open
-5. Optional extras: pagination, filtering, frontend Docker service, CI
+4. ~~Frontend tests (§10.3)~~ and ~~backend coverage report (§10.4)~~ — done
+5. Optional extras remaining: frontend Docker service, CI, notifications
 
 ---
 

@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
+import { FULL_PAGE, toQueryString, type PageParams } from "@/lib/api/query";
 import type {
   CreateClassInput,
   CreateSubjectInput,
@@ -11,7 +12,13 @@ import type {
 } from "@/types";
 
 // ---- Users ----
-export const getUsers = () => apiFetch<UserSummary[]>("/users");
+export interface UserListParams extends PageParams {
+  role?: UserSummary["role"];
+  search?: string;
+}
+
+export const getUsers = (params: UserListParams = FULL_PAGE) =>
+  apiFetch<UserSummary[]>(`/users${toQueryString({ ...FULL_PAGE, ...params })}`);
 export const createUser = (input: CreateUserInput) =>
   apiFetch<UserSummary>("/users", { method: "POST", body: input });
 export const updateUser = (id: string, input: UpdateUserInput) =>

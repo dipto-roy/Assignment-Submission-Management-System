@@ -1,3 +1,5 @@
+using AssignmentSubmissionSystem.Application.Common.Paging;
+using AssignmentSubmissionSystem.Application.Users.Dtos;
 using AssignmentSubmissionSystem.Domain.Entities;
 
 namespace AssignmentSubmissionSystem.Application.Abstractions;
@@ -8,7 +10,8 @@ public interface IUserRepository
 
     Task<User?> FindByIdAsync(Guid id, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<User>> FindAllAsync(CancellationToken cancellationToken);
+    /// <summary>One page of users, filtered by role/search and ordered by name.</summary>
+    Task<PagedResult<User>> FindPageAsync(UserQuery query, CancellationToken cancellationToken);
 
     Task<bool> ExistsByEmailAsync(string email, Guid? excludeUserId, CancellationToken cancellationToken);
 

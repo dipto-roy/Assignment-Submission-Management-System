@@ -1,5 +1,6 @@
 using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
+using AssignmentSubmissionSystem.Application.Common.Paging;
 using AssignmentSubmissionSystem.Application.Submissions.Dtos;
 using AssignmentSubmissionSystem.Domain.Entities;
 using AssignmentSubmissionSystem.Domain.Enums;
@@ -9,14 +10,14 @@ namespace AssignmentSubmissionSystem.Application.Submissions;
 public interface ISubmissionService
 {
     /// <summary>Student's own submissions only (business rule §7.4).</summary>
-    Task<IReadOnlyList<SubmissionSummaryDto>> GetMineAsync(Guid studentId, CancellationToken cancellationToken);
+    Task<PagedResult<SubmissionSummaryDto>> GetMineAsync(Guid studentId, SubmissionQuery query, CancellationToken cancellationToken);
 
     Task<SubmissionSummaryDto> SubmitAsync(Guid assignmentId, Guid studentId, CreateSubmissionDto dto, CancellationToken cancellationToken);
 
     Task<SubmissionSummaryDto> UpdateAsync(Guid submissionId, Guid studentId, UpdateSubmissionDto dto, CancellationToken cancellationToken);
 
     /// <summary>Every submission for one assignment — Admin sees any, Teacher only their own assignment (business rule §7.5).</summary>
-    Task<IReadOnlyList<SubmissionDetailDto>> GetForAssignmentAsync(Guid assignmentId, Guid userId, UserRole role, CancellationToken cancellationToken);
+    Task<PagedResult<SubmissionDetailDto>> GetForAssignmentAsync(Guid assignmentId, Guid userId, UserRole role, SubmissionQuery query, CancellationToken cancellationToken);
 
     Task<SubmissionDetailDto> GradeAsync(Guid submissionId, Guid teacherId, GradeSubmissionDto dto, CancellationToken cancellationToken);
 
@@ -27,10 +28,13 @@ public sealed class SubmissionService(
     ISubmissionRepository submissionRepository,
     IAssignmentRepository assignmentRepository) : ISubmissionService
 {
-    public async Task<IReadOnlyList<SubmissionSummaryDto>> GetMineAsync(Guid studentId, CancellationToken cancellationToken)
+    public async Task<PagedResult<SubmissionSummaryDto>> GetMineAsync(
+        Guid studentId,
+        SubmissionQuery query,
+        CancellationToken cancellationToken)
     {
-        var submissions = await submissionRepository.FindByStudentAsync(studentId, cancellationToken);
-        return submissions.Select(ToDto).ToList();
+        var page = await submissionRepository.FindByStudentAsync(studentId, query, cancellationToken);
+        return page.Map(ToDto);
     }
 
     public async Task<SubmissionSummaryDto> SubmitAsync(
@@ -109,10 +113,11 @@ public sealed class SubmissionService(
         return ToDto(submission);
     }
 
-    public async Task<IReadOnlyList<SubmissionDetailDto>> GetForAssignmentAsync(
+    public async Task<PagedResult<SubmissionDetailDto>> GetForAssignmentAsync(
         Guid assignmentId,
         Guid userId,
         UserRole role,
+        SubmissionQuery query,
         CancellationToken cancellationToken)
     {
         var assignment = await assignmentRepository.FindByIdAsync(assignmentId, cancellationToken)
@@ -124,8 +129,8 @@ public sealed class SubmissionService(
             throw new ForbiddenAppException("You do not own this assignment.");
         }
 
-        var submissions = await submissionRepository.FindByAssignmentAsync(assignmentId, cancellationToken);
-        return submissions.Select(ToDetailDto).ToList();
+        var page = await submissionRepository.FindByAssignmentAsync(assignmentId, query, cancellationToken);
+        return page.Map(ToDetailDto);
     }
 
     public async Task<SubmissionDetailDto> GradeAsync(

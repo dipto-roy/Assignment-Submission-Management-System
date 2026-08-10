@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
+import { FULL_PAGE, toQueryString, type PageParams } from "@/lib/api/query";
 import type {
   GradeSubmissionInput,
   Submission,
@@ -6,12 +7,22 @@ import type {
   SubmissionStatus,
 } from "@/types";
 
+export interface SubmissionListParams extends PageParams {
+  status?: SubmissionStatus;
+}
+
 /** Teacher/Admin review view for one assignment (plan §4, business rule §7.5). */
-export const getAssignmentSubmissions = (assignmentId: string) =>
-  apiFetch<SubmissionDetail[]>(`/assignments/${assignmentId}/submissions`);
+export const getAssignmentSubmissions = (
+  assignmentId: string,
+  params: SubmissionListParams = FULL_PAGE,
+) =>
+  apiFetch<SubmissionDetail[]>(
+    `/assignments/${assignmentId}/submissions${toQueryString({ ...FULL_PAGE, ...params })}`,
+  );
 
 /** Student's own submissions only (business rule §7.4). */
-export const getMySubmissions = () => apiFetch<Submission[]>("/submissions/mine");
+export const getMySubmissions = (params: SubmissionListParams = FULL_PAGE) =>
+  apiFetch<Submission[]>(`/submissions/mine${toQueryString({ ...FULL_PAGE, ...params })}`);
 
 export const createSubmission = (assignmentId: string, content: string) =>
   apiFetch<Submission>(`/assignments/${assignmentId}/submissions`, {

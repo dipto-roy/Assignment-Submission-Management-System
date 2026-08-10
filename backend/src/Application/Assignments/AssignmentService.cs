@@ -1,6 +1,7 @@
 using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Assignments.Dtos;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
+using AssignmentSubmissionSystem.Application.Common.Paging;
 using AssignmentSubmissionSystem.Domain.Entities;
 using AssignmentSubmissionSystem.Domain.Enums;
 
@@ -9,7 +10,7 @@ namespace AssignmentSubmissionSystem.Application.Assignments;
 public interface IAssignmentService
 {
     /// <summary>Role-filtered list: Admin sees all, Teacher sees own, Student sees Published for their class.</summary>
-    Task<IReadOnlyList<AssignmentSummaryDto>> GetAllAsync(Guid userId, UserRole role, CancellationToken cancellationToken);
+    Task<PagedResult<AssignmentSummaryDto>> GetAllAsync(Guid userId, UserRole role, AssignmentQuery query, CancellationToken cancellationToken);
 
     Task<AssignmentSummaryDto> GetByIdAsync(Guid id, Guid userId, UserRole role, CancellationToken cancellationToken);
 
@@ -24,17 +25,21 @@ public interface IAssignmentService
 
 public sealed class AssignmentService(IAssignmentRepository assignmentRepository) : IAssignmentService
 {
-    public async Task<IReadOnlyList<AssignmentSummaryDto>> GetAllAsync(Guid userId, UserRole role, CancellationToken cancellationToken)
+    public async Task<PagedResult<AssignmentSummaryDto>> GetAllAsync(
+        Guid userId,
+        UserRole role,
+        AssignmentQuery query,
+        CancellationToken cancellationToken)
     {
-        var assignments = role switch
+        var page = role switch
         {
-            UserRole.Admin => await assignmentRepository.FindAllAsync(cancellationToken),
-            UserRole.Teacher => await assignmentRepository.FindByTeacherAsync(userId, cancellationToken),
-            UserRole.Student => await assignmentRepository.FindPublishedForStudentAsync(userId, cancellationToken),
+            UserRole.Admin => await assignmentRepository.FindAllAsync(query, cancellationToken),
+            UserRole.Teacher => await assignmentRepository.FindByTeacherAsync(userId, query, cancellationToken),
+            UserRole.Student => await assignmentRepository.FindPublishedForStudentAsync(userId, query, cancellationToken),
             _ => throw new ForbiddenAppException("Unrecognized role.")
         };
 
-        return assignments.Select(ToDto).ToList();
+        return page.Map(ToDto);
     }
 
     public async Task<AssignmentSummaryDto> GetByIdAsync(Guid id, Guid userId, UserRole role, CancellationToken cancellationToken)

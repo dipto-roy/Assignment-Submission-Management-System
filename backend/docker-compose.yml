@@ -45,6 +45,14 @@ services:
       Cors__AllowedOrigins__1: ${FRONTEND_ORIGIN_ALT:-http://127.0.0.1:3000}
     ports:
       - "${API_PORT:-5000}:8080"
+    # /health is anonymous and checks the database connection, so "healthy" here means the
+    # API can actually serve requests. busybox wget ships in the alpine runtime image.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/health | grep -q Healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
 volumes:
   postgres_data:

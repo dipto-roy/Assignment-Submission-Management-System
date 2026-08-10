@@ -24,11 +24,14 @@ public sealed class AssignmentsController(
     IValidator<CreateSubmissionDto> createSubmissionValidator) : ControllerBase
 {
     // Role-filtered: Admin → all, Teacher → own, Student → Published for their class.
+    // Paginated and filterable: `?status=Published&subjectId=…&classId=…&search=essay&page=1&pageSize=20`.
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<AssignmentSummaryDto>>>> GetAll(CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<AssignmentSummaryDto>>>> GetAll(
+        [FromQuery] AssignmentQuery query,
+        CancellationToken ct)
     {
-        var assignments = await assignmentService.GetAllAsync(CurrentUserId, CurrentRole, ct);
-        return Ok(ApiResponse<IReadOnlyList<AssignmentSummaryDto>>.Ok(assignments));
+        var page = await assignmentService.GetAllAsync(CurrentUserId, CurrentRole, query, ct);
+        return Ok(ApiResponse<IReadOnlyList<AssignmentSummaryDto>>.Ok(page.Items, page.ToMeta()));
     }
 
     [HttpGet("{id:guid}")]
@@ -88,10 +91,13 @@ public sealed class AssignmentsController(
     // Review view: Admin sees any assignment's submissions, Teacher only their own (business rule §7.5).
     [HttpGet("{id:guid}/submissions")]
     [Authorize(Roles = $"{Roles.Admin},{Roles.Teacher}")]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<SubmissionDetailDto>>>> GetSubmissions(Guid id, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<SubmissionDetailDto>>>> GetSubmissions(
+        Guid id,
+        [FromQuery] SubmissionQuery query,
+        CancellationToken ct)
     {
-        var submissions = await submissionService.GetForAssignmentAsync(id, CurrentUserId, CurrentRole, ct);
-        return Ok(ApiResponse<IReadOnlyList<SubmissionDetailDto>>.Ok(submissions));
+        var page = await submissionService.GetForAssignmentAsync(id, CurrentUserId, CurrentRole, query, ct);
+        return Ok(ApiResponse<IReadOnlyList<SubmissionDetailDto>>.Ok(page.Items, page.ToMeta()));
     }
 
     // Nested resource: a student submits their work against a specific assignment.

@@ -5,6 +5,7 @@ using AssignmentSubmissionSystem.Application.Common.Exceptions;
 using AssignmentSubmissionSystem.Domain.Entities;
 using AssignmentSubmissionSystem.Domain.Enums;
 using Moq;
+using static AssignmentSubmissionSystem.UnitTests.TestPaging;
 
 namespace AssignmentSubmissionSystem.UnitTests.Assignments;
 
@@ -134,39 +135,42 @@ public sealed class AssignmentServiceTests
     public async Task GetAllAsync_UsesAdminFindAll_ForAdminRole()
     {
         var userId = Guid.NewGuid();
-        _assignmentRepository.Setup(r => r.FindAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Assignment> { BuildAssignment(Guid.NewGuid()) });
+        _assignmentRepository.Setup(r => r.FindAllAsync(It.IsAny<AssignmentQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Page(BuildAssignment(Guid.NewGuid())));
 
-        var result = await _sut.GetAllAsync(userId, UserRole.Admin, CancellationToken.None);
+        var result = await _sut.GetAllAsync(userId, UserRole.Admin, new AssignmentQuery(), CancellationToken.None);
 
-        result.Should().HaveCount(1);
-        _assignmentRepository.Verify(r => r.FindAllAsync(It.IsAny<CancellationToken>()), Times.Once);
+        result.Items.Should().HaveCount(1);
+        result.Total.Should().Be(1);
+        _assignmentRepository.Verify(r => r.FindAllAsync(It.IsAny<AssignmentQuery>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task GetAllAsync_UsesTeacherOwnAssignments_ForTeacherRole()
     {
         var teacherId = Guid.NewGuid();
-        _assignmentRepository.Setup(r => r.FindByTeacherAsync(teacherId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Assignment> { BuildAssignment(teacherId) });
+        _assignmentRepository.Setup(r => r.FindByTeacherAsync(teacherId, It.IsAny<AssignmentQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Page(BuildAssignment(teacherId)));
 
-        var result = await _sut.GetAllAsync(teacherId, UserRole.Teacher, CancellationToken.None);
+        var result = await _sut.GetAllAsync(teacherId, UserRole.Teacher, new AssignmentQuery(), CancellationToken.None);
 
-        result.Should().HaveCount(1);
-        _assignmentRepository.Verify(r => r.FindByTeacherAsync(teacherId, It.IsAny<CancellationToken>()), Times.Once);
+        result.Items.Should().HaveCount(1);
+        _assignmentRepository.Verify(r => r.FindByTeacherAsync(teacherId, It.IsAny<AssignmentQuery>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task GetAllAsync_UsesPublishedForStudent_ForStudentRole()
     {
         var studentId = Guid.NewGuid();
-        _assignmentRepository.Setup(r => r.FindPublishedForStudentAsync(studentId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Assignment>());
+        _assignmentRepository.Setup(r => r.FindPublishedForStudentAsync(studentId, It.IsAny<AssignmentQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Page<Assignment>());
 
-        var result = await _sut.GetAllAsync(studentId, UserRole.Student, CancellationToken.None);
+        var result = await _sut.GetAllAsync(studentId, UserRole.Student, new AssignmentQuery(), CancellationToken.None);
 
-        result.Should().BeEmpty();
-        _assignmentRepository.Verify(r => r.FindPublishedForStudentAsync(studentId, It.IsAny<CancellationToken>()), Times.Once);
+        result.Items.Should().BeEmpty();
+        _assignmentRepository.Verify(
+            r => r.FindPublishedForStudentAsync(studentId, It.IsAny<AssignmentQuery>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]

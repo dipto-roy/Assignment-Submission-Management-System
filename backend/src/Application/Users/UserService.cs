@@ -1,5 +1,6 @@
 using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
+using AssignmentSubmissionSystem.Application.Common.Paging;
 using AssignmentSubmissionSystem.Application.Users.Dtos;
 using AssignmentSubmissionSystem.Domain.Entities;
 using AssignmentSubmissionSystem.Domain.Enums;
@@ -8,7 +9,7 @@ namespace AssignmentSubmissionSystem.Application.Users;
 
 public interface IUserService
 {
-    Task<IReadOnlyList<UserSummaryDto>> GetAllAsync(CancellationToken cancellationToken);
+    Task<PagedResult<UserSummaryDto>> GetAllAsync(UserQuery query, CancellationToken cancellationToken);
 
     Task<UserSummaryDto> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
@@ -24,10 +25,10 @@ public sealed class UserService(
     IClassRepository classRepository,
     IPasswordHasher passwordHasher) : IUserService
 {
-    public async Task<IReadOnlyList<UserSummaryDto>> GetAllAsync(CancellationToken cancellationToken)
+    public async Task<PagedResult<UserSummaryDto>> GetAllAsync(UserQuery query, CancellationToken cancellationToken)
     {
-        var users = await userRepository.FindAllAsync(cancellationToken);
-        return users.Select(ToDto).ToList();
+        var page = await userRepository.FindPageAsync(query, cancellationToken);
+        return page.Map(ToDto);
     }
 
     public async Task<UserSummaryDto> GetByIdAsync(Guid id, CancellationToken cancellationToken)

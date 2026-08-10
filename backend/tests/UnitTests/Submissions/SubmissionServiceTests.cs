@@ -5,6 +5,7 @@ using AssignmentSubmissionSystem.Application.Submissions.Dtos;
 using AssignmentSubmissionSystem.Domain.Entities;
 using AssignmentSubmissionSystem.Domain.Enums;
 using Moq;
+using static AssignmentSubmissionSystem.UnitTests.TestPaging;
 
 namespace AssignmentSubmissionSystem.UnitTests.Submissions;
 
@@ -191,13 +192,15 @@ public sealed class SubmissionServiceTests
     {
         var studentId = Guid.NewGuid();
         var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1));
-        _submissionRepository.Setup(r => r.FindByStudentAsync(studentId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Submission> { BuildSubmission(studentId, assignment) });
+        _submissionRepository.Setup(r => r.FindByStudentAsync(studentId, It.IsAny<SubmissionQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Page(BuildSubmission(studentId, assignment)));
 
-        var result = await _sut.GetMineAsync(studentId, CancellationToken.None);
+        var result = await _sut.GetMineAsync(studentId, new SubmissionQuery(), CancellationToken.None);
 
-        result.Should().ContainSingle(s => s.StudentId == studentId);
-        _submissionRepository.Verify(r => r.FindByStudentAsync(studentId, It.IsAny<CancellationToken>()), Times.Once);
+        result.Items.Should().ContainSingle(s => s.StudentId == studentId);
+        _submissionRepository.Verify(
+            r => r.FindByStudentAsync(studentId, It.IsAny<SubmissionQuery>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     // ---- Phase 6: grading, feedback, status ----
@@ -208,7 +211,7 @@ public sealed class SubmissionServiceTests
         var assignmentId = Guid.NewGuid();
         _assignmentRepository.Setup(r => r.FindByIdAsync(assignmentId, It.IsAny<CancellationToken>())).ReturnsAsync((Assignment?)null);
 
-        var act = () => _sut.GetForAssignmentAsync(assignmentId, Guid.NewGuid(), UserRole.Teacher, CancellationToken.None);
+        var act = () => _sut.GetForAssignmentAsync(assignmentId, Guid.NewGuid(), UserRole.Teacher, new SubmissionQuery(), CancellationToken.None);
 
         await Assert.ThrowsAsync<NotFoundAppException>(act);
     }
@@ -219,10 +222,12 @@ public sealed class SubmissionServiceTests
         var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1));
         _assignmentRepository.Setup(r => r.FindByIdAsync(assignment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(assignment);
 
-        var act = () => _sut.GetForAssignmentAsync(assignment.Id, Guid.NewGuid(), UserRole.Teacher, CancellationToken.None);
+        var act = () => _sut.GetForAssignmentAsync(assignment.Id, Guid.NewGuid(), UserRole.Teacher, new SubmissionQuery(), CancellationToken.None);
 
         await Assert.ThrowsAsync<ForbiddenAppException>(act);
-        _submissionRepository.Verify(r => r.FindByAssignmentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _submissionRepository.Verify(
+            r => r.FindByAssignmentAsync(It.IsAny<Guid>(), It.IsAny<SubmissionQuery>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
@@ -232,7 +237,7 @@ public sealed class SubmissionServiceTests
         var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1));
         _assignmentRepository.Setup(r => r.FindByIdAsync(assignment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(assignment);
 
-        var act = () => _sut.GetForAssignmentAsync(assignment.Id, studentId, UserRole.Student, CancellationToken.None);
+        var act = () => _sut.GetForAssignmentAsync(assignment.Id, studentId, UserRole.Student, new SubmissionQuery(), CancellationToken.None);
 
         await Assert.ThrowsAsync<ForbiddenAppException>(act);
     }
@@ -244,12 +249,12 @@ public sealed class SubmissionServiceTests
         var studentId = Guid.NewGuid();
         var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1), teacherId);
         _assignmentRepository.Setup(r => r.FindByIdAsync(assignment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(assignment);
-        _submissionRepository.Setup(r => r.FindByAssignmentAsync(assignment.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Submission> { BuildSubmission(studentId, assignment) });
+        _submissionRepository.Setup(r => r.FindByAssignmentAsync(assignment.Id, It.IsAny<SubmissionQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Page(BuildSubmission(studentId, assignment)));
 
-        var result = await _sut.GetForAssignmentAsync(assignment.Id, teacherId, UserRole.Teacher, CancellationToken.None);
+        var result = await _sut.GetForAssignmentAsync(assignment.Id, teacherId, UserRole.Teacher, new SubmissionQuery(), CancellationToken.None);
 
-        result.Should().ContainSingle(s => s.StudentId == studentId && s.StudentName == "Sample Student");
+        result.Items.Should().ContainSingle(s => s.StudentId == studentId && s.StudentName == "Sample Student");
     }
 
     [Fact]
@@ -257,12 +262,12 @@ public sealed class SubmissionServiceTests
     {
         var assignment = BuildAssignment(AssignmentStatus.Published, DateTime.UtcNow.AddDays(1));
         _assignmentRepository.Setup(r => r.FindByIdAsync(assignment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(assignment);
-        _submissionRepository.Setup(r => r.FindByAssignmentAsync(assignment.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Submission> { BuildSubmission(Guid.NewGuid(), assignment) });
+        _submissionRepository.Setup(r => r.FindByAssignmentAsync(assignment.Id, It.IsAny<SubmissionQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Page(BuildSubmission(Guid.NewGuid(), assignment)));
 
-        var result = await _sut.GetForAssignmentAsync(assignment.Id, Guid.NewGuid(), UserRole.Admin, CancellationToken.None);
+        var result = await _sut.GetForAssignmentAsync(assignment.Id, Guid.NewGuid(), UserRole.Admin, new SubmissionQuery(), CancellationToken.None);
 
-        result.Should().ContainSingle();
+        result.Items.Should().ContainSingle();
     }
 
     [Fact]

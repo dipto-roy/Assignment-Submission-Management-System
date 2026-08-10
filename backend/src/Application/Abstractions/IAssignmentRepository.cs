@@ -1,3 +1,5 @@
+using AssignmentSubmissionSystem.Application.Assignments.Dtos;
+using AssignmentSubmissionSystem.Application.Common.Paging;
 using AssignmentSubmissionSystem.Domain.Entities;
 
 namespace AssignmentSubmissionSystem.Application.Abstractions;
@@ -6,14 +8,14 @@ public interface IAssignmentRepository
 {
     Task<Assignment?> FindByIdAsync(Guid id, CancellationToken cancellationToken);
 
-    /// <summary>Admin view — every assignment.</summary>
-    Task<IReadOnlyList<Assignment>> FindAllAsync(CancellationToken cancellationToken);
+    /// <summary>Admin view — every assignment, one page at a time.</summary>
+    Task<PagedResult<Assignment>> FindAllAsync(AssignmentQuery query, CancellationToken cancellationToken);
 
     /// <summary>Teacher view — only assignments the teacher owns.</summary>
-    Task<IReadOnlyList<Assignment>> FindByTeacherAsync(Guid teacherId, CancellationToken cancellationToken);
+    Task<PagedResult<Assignment>> FindByTeacherAsync(Guid teacherId, AssignmentQuery query, CancellationToken cancellationToken);
 
     /// <summary>Student view — only Published assignments for the student's enrolled class(es).</summary>
-    Task<IReadOnlyList<Assignment>> FindPublishedForStudentAsync(Guid studentId, CancellationToken cancellationToken);
+    Task<PagedResult<Assignment>> FindPublishedForStudentAsync(Guid studentId, AssignmentQuery query, CancellationToken cancellationToken);
 
     Task<bool> IsTeacherAssignedToSubjectAsync(Guid teacherId, Guid subjectId, CancellationToken cancellationToken);
 
