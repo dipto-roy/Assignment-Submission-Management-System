@@ -14,8 +14,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-assignment_submission_dev}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_dev_only}
+    # Bound to loopback: the api service reaches postgres over the compose network, so the
+    # only consumer of the published port is a psql/GUI client on this machine. Publishing
+    # on 0.0.0.0 would expose a database carrying the default dev password to the LAN.
     ports:
-      - "${POSTGRES_PORT:-5434}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -47,6 +50,12 @@ services:
       # different host or port than the appsettings.json defaults.
       Cors__AllowedOrigins__0: ${FRONTEND_ORIGIN:-http://localhost:3000}
       Cors__AllowedOrigins__1: ${FRONTEND_ORIGIN_ALT:-http://127.0.0.1:3000}
+      # Fixed-window brute-force guard on POST /auth/login, bound to LoginRateLimitOptions
+      # ("RateLimiting:Login"). Forwarded explicitly: without these lines the variables in
+      # .env are accepted silently and never reach the container, so tuning the throttle
+      # would appear to work while the code defaults (10 requests / 60s) stayed in force.
+      RateLimiting__Login__PermitLimit: ${RateLimiting__Login__PermitLimit:-10}
+      RateLimiting__Login__WindowSeconds: ${RateLimiting__Login__WindowSeconds:-60}
     ports:
       - "${API_PORT:-5000}:8080"
     # /health is anonymous and checks the database connection, so "healthy" here means the
@@ -67,6 +76,12 @@ services:
       args:
         # Baked into the client bundle at build time. This is the URL the browser uses, so
         # it must be the published host port of the api service, not http://api:8080.
+        #
+        # Because this is inlined at build time rather than read at startup, changing
+        # NEXT_PUBLIC_API_URL or API_PORT in .env does NOT take effect on a plain
+        # `docker compose up` — compose reuses the cached image and the browser keeps
+        # calling the old URL, with no error at build or boot. Rebuild after changing
+        # either one:  docker compose up -d --build frontend
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api/v1}
     restart: unless-stopped
     depends_on:
@@ -74,6 +89,18 @@ services:
         condition: service_healthy
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
+    # Without this the container counts as up the moment the process spawns, so a server.js
+    # that dies on boot still reports as running. Requesting "/" exercises the Next.js
+    # server itself; the interval is loose because this renders a real page.
+    # 127.0.0.1, not localhost: the server binds 0.0.0.0 (IPv4 only) while /etc/hosts maps
+    # localhost to ::1 as well, and busybox wget tries the v6 address first and gets
+    # ECONNREFUSED — a permanently unhealthy container in front of a working server.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
 volumes:
   postgres_data:
