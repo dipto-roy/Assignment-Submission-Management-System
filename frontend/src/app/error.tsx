@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 
 /** Route-level error boundary (plan §10.3): keeps a failed fetch from blanking the app. */
 export default function ErrorBoundary({
@@ -16,18 +18,21 @@ export default function ErrorBoundary({
   }, [error]);
 
   return (
-    <main className="mx-auto flex max-w-md flex-col items-start gap-4 p-8">
-      <h1 className="text-xl font-semibold">Something went wrong</h1>
-      <p className="text-sm text-black/60 dark:text-white/60">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-danger-soft text-danger">
+        <Icon name="alert-triangle" size="xl" />
+      </span>
+
+      <h1 className="text-xl font-semibold tracking-tight text-foreground">
+        Something went wrong
+      </h1>
+      <p className="text-sm text-foreground-muted">
         {error.message || "An unexpected error occurred while loading this page."}
       </p>
-      <button
-        type="button"
-        onClick={reset}
-        className="rounded bg-black px-3 py-1 text-sm text-white dark:bg-white dark:text-black"
-      >
+
+      <Button icon="refresh" onClick={reset}>
         Try again
-      </button>
+      </Button>
     </main>
   );
 }

@@ -8,7 +8,10 @@ import {
   markNotificationRead,
 } from "@/lib/api/notifications";
 import { formatDateTime } from "@/lib/datetime";
-import { mutedTextClass, subtleButtonClass } from "@/components/ui/styles";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
+import { Alert, LoadingLine } from "@/components/ui/primitives";
+import { iconButtonClass, mutedTextClass, subtleTextClass } from "@/components/ui/styles";
 import type { AppNotification } from "@/types";
 
 /** How often the badge re-checks. Long enough to stay cheap, short enough to feel live. */
@@ -135,15 +138,15 @@ export function NotificationBell() {
         aria-expanded={isOpen}
         aria-haspopup="menu"
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
-        className="relative rounded px-2 py-1 text-sm hover:bg-black/5 dark:hover:bg-white/10"
+        className={`${iconButtonClass} relative ${isOpen ? "bg-muted text-foreground" : ""}`}
       >
-        <span aria-hidden="true">🔔</span>
+        <Icon name="bell" size="lg" />
         {unread > 0 && (
           <span
             // aria-hidden: the count is already announced through the button's label, so
             // exposing it again would read the number twice.
             aria-hidden="true"
-            className="absolute -right-1 -top-1 min-w-4 rounded-full bg-red-600 px-1 text-center text-[10px] font-semibold leading-4 text-white"
+            className="absolute right-1 top-1 min-w-4 rounded-full bg-danger px-1 text-center font-mono text-[10px] font-semibold leading-4 text-on-danger ring-2 ring-surface"
           >
             {badgeLabel}
           </span>
@@ -154,57 +157,67 @@ export function NotificationBell() {
         <div
           role="menu"
           aria-label="Notifications"
-          className="absolute right-0 z-20 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded border border-black/10 bg-white shadow-lg dark:border-white/15 dark:bg-black"
+          className="app-animate-in absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border-subtle bg-surface shadow-lg"
         >
-          <div className="flex items-center justify-between border-b border-black/10 px-3 py-2 dark:border-white/15">
-            <span className="text-sm font-semibold">Notifications</span>
+          <div className="flex items-center justify-between gap-2 border-b border-border-subtle px-3 py-2">
+            <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <Icon name="bell" size="sm" className="text-primary" />
+              Notifications
+            </span>
             {unread > 0 && (
-              <button type="button" onClick={handleMarkAllRead} className={subtleButtonClass}>
+              <Button variant="subtle" icon="check" onClick={handleMarkAllRead}>
                 Mark all read
-              </button>
+              </Button>
             )}
           </div>
 
           <div className="max-h-96 overflow-y-auto">
-            {isLoading && <p className={`px-3 py-4 ${mutedTextClass}`}>Loading…</p>}
+            {isLoading && (
+              <div className="px-3 py-4">
+                <LoadingLine />
+              </div>
+            )}
 
             {error && (
-              <p role="alert" className="px-3 py-4 text-sm text-red-600 dark:text-red-400">
-                {error}
-              </p>
+              <div className="px-3 py-3">
+                <Alert>{error}</Alert>
+              </div>
             )}
 
             {!isLoading && !error && notifications.length === 0 && (
-              <p className={`px-3 py-4 ${mutedTextClass}`}>You have no notifications.</p>
+              <div className="flex flex-col items-center gap-2 px-3 py-8 text-center">
+                <Icon name="inbox" size="xl" className="text-foreground-subtle" />
+                <p className={mutedTextClass}>You have no notifications.</p>
+              </div>
             )}
 
             <ul>
               {notifications.map((notification) => (
-                <li
-                  key={notification.id}
-                  className="border-b border-black/5 last:border-b-0 dark:border-white/10"
-                >
+                <li key={notification.id} className="border-b border-border-subtle last:border-b-0">
                   <button
                     type="button"
                     role="menuitem"
                     onClick={() => handleMarkRead(notification)}
-                    className={`w-full px-3 py-2 text-left hover:bg-black/5 dark:hover:bg-white/10 ${
-                      notification.isRead ? "" : "bg-black/[0.03] dark:bg-white/[0.06]"
+                    className={`w-full cursor-pointer px-3 py-2.5 text-left transition-colors duration-150 hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${
+                      notification.isRead ? "" : "bg-primary-soft/40"
                     }`}
                   >
                     <span className="flex items-start gap-2">
+                      {/* Unread is marked by a dot and by the row tint, never by colour alone. */}
                       {!notification.isRead && (
                         <span
                           aria-hidden="true"
-                          className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-600 dark:bg-blue-400"
+                          className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary"
                         />
                       )}
                       <span className="min-w-0">
-                        <span className="block text-sm font-medium">{notification.title}</span>
-                        <span className="block text-sm text-black/70 dark:text-white/70">
+                        <span className="block text-sm font-semibold text-foreground">
+                          {notification.title}
+                        </span>
+                        <span className="block text-sm text-foreground-muted">
                           {notification.message}
                         </span>
-                        <span className={`block ${mutedTextClass}`}>
+                        <span className={`mt-0.5 block ${subtleTextClass}`}>
                           {formatDateTime(notification.createdAt)}
                         </span>
                       </span>

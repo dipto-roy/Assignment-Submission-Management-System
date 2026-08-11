@@ -5,12 +5,16 @@ import { getAssignments } from "@/lib/api/assignments";
 import { getAssignmentSubmissions } from "@/lib/api/submissions";
 import { useClasses } from "@/lib/hooks/useClasses";
 import { formatDateTime } from "@/lib/datetime";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import {
-  cardClass,
-  inputClass,
-  mutedTextClass,
-  subtleButtonClass,
-} from "@/components/ui/styles";
+  Alert,
+  Badge,
+  EmptyState,
+  LoadingLine,
+  SectionHeading,
+} from "@/components/ui/primitives";
+import { cardClass, compactInputClass, mutedTextClass, subtleTextClass } from "@/components/ui/styles";
 import type { Assignment, AssignmentStatus, SubmissionDetail } from "@/types";
 
 const STATUS_FILTERS: readonly (AssignmentStatus | "")[] = ["", "Draft", "Published"];
@@ -83,18 +87,18 @@ export function AssignmentsOversightPanel() {
 
   return (
     <section>
-      <h2 className="mb-1 text-lg font-semibold">Assignments &amp; submissions</h2>
-      <p className={`mb-3 ${mutedTextClass}`}>
-        Every assignment across all classes, including drafts. Read-only — teachers own the
-        edits and the grading.
-      </p>
+      <SectionHeading
+        icon="layers"
+        title="Assignments & submissions"
+        description="Every assignment across all classes, including drafts. Read-only — teachers own the edits and the grading."
+      />
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-5 flex flex-wrap items-end gap-2">
         <select
           value={classId}
           onChange={(e) => setClassId(e.target.value)}
           aria-label="Filter by class"
-          className={inputClass}
+          className={compactInputClass}
         >
           <option value="">All classes</option>
           {classes.map((c) => (
@@ -109,7 +113,7 @@ export function AssignmentsOversightPanel() {
           value={status}
           onChange={(e) => setStatus(e.target.value as AssignmentStatus | "")}
           aria-label="Filter by status"
-          className={inputClass}
+          className={compactInputClass}
         >
           {STATUS_FILTERS.map((s) => (
             <option key={s} value={s}>
@@ -118,54 +122,82 @@ export function AssignmentsOversightPanel() {
           ))}
         </select>
 
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search title…"
-          aria-label="Search assignments"
-          className={inputClass}
-        />
+        <span className="relative">
+          <Icon
+            name="search"
+            size="sm"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle"
+          />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search title…"
+            aria-label="Search assignments"
+            className={`${compactInputClass} pl-9`}
+          />
+        </span>
       </div>
 
-      {error && (
-        <p role="alert" className="mb-3 text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
+      {error && <Alert className="mb-3">{error}</Alert>}
 
       {assignments === null ? (
-        <p className={mutedTextClass}>Loading assignments…</p>
+        <LoadingLine label="Loading assignments…" />
       ) : assignments.length === 0 ? (
-        <p className={mutedTextClass}>No assignments match these filters.</p>
+        <EmptyState
+          icon="search"
+          title="No assignments match these filters."
+          description="Widen the class or status filter, or clear the search."
+        />
       ) : (
         <ul className="flex flex-col gap-3">
           {assignments.map((assignment) => (
             <li key={assignment.id} className={cardClass}>
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-medium">{assignment.title}</span>
-                <span className={mutedTextClass}>{assignment.status}</span>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <span className="font-semibold text-foreground">{assignment.title}</span>
+                <Badge
+                  tone={assignment.status === "Published" ? "success" : "neutral"}
+                  icon={assignment.status === "Published" ? "check-circle" : "edit"}
+                >
+                  {assignment.status}
+                </Badge>
               </div>
 
-              <p className={`mt-1 ${mutedTextClass}`}>
-                {assignment.className} · {assignment.subjectName} · {assignment.teacherName}
-              </p>
-              <p className={mutedTextClass}>
-                Due {formatDateTime(assignment.deadline)} · {assignment.maxMarks} marks
+              <p className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 ${mutedTextClass}`}>
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="users" size="sm" />
+                  {assignment.className}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="book-open" size="sm" />
+                  {assignment.subjectName}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="user" size="sm" />
+                  {assignment.teacherName}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="calendar-clock" size="sm" />
+                  {formatDateTime(assignment.deadline)}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="check" size="sm" />
+                  <span className="font-mono">{assignment.maxMarks}</span> marks
+                </span>
               </p>
 
-              <button
-                type="button"
+              <Button
+                variant="subtle"
+                icon={expandedId === assignment.id ? "eye-off" : "eye"}
                 onClick={() => toggle(assignment.id)}
                 aria-expanded={expandedId === assignment.id}
-                className={`mt-2 ${subtleButtonClass}`}
+                className="mt-2"
               >
                 {expandedId === assignment.id ? "Hide submissions" : "View submissions"}
-              </button>
+              </Button>
 
-              {expandedId === assignment.id && <SubmissionList
-                assignmentId={assignment.id}
-                submissions={submissions}
-              />}
+              {expandedId === assignment.id && (
+                <SubmissionList assignmentId={assignment.id} submissions={submissions} />
+              )}
             </li>
           ))}
         </ul>
@@ -181,31 +213,45 @@ interface SubmissionListProps {
 
 function SubmissionList({ assignmentId, submissions }: SubmissionListProps) {
   if (submissions?.assignmentId !== assignmentId) {
-    return <p className={`mt-2 ${mutedTextClass}`}>Loading submissions…</p>;
+    return (
+      <div className="mt-3">
+        <LoadingLine label="Loading submissions…" />
+      </div>
+    );
   }
 
   if (submissions.items.length === 0) {
-    return <p className={`mt-2 ${mutedTextClass}`}>No submissions yet.</p>;
+    return <p className={`mt-3 ${mutedTextClass}`}>No submissions yet.</p>;
   }
 
   return (
-    <ul className="mt-2 divide-y divide-black/10 dark:divide-white/10">
+    <ul className="app-animate-in mt-3 divide-y divide-border-subtle rounded-lg border border-border-subtle bg-muted/40">
       {submissions.items.map((submission) => (
-        <li key={submission.id} className="py-2 text-sm">
+        <li key={submission.id} className="px-3 py-2.5 text-sm">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span>
-              {submission.studentName}{" "}
-              <span className="text-black/50 dark:text-white/50">{submission.studentEmail}</span>
+            <span className="flex items-center gap-2">
+              <Icon name="user" size="sm" className="text-foreground-subtle" />
+              <span className="font-medium text-foreground">{submission.studentName}</span>
+              <span className={subtleTextClass}>{submission.studentEmail}</span>
             </span>
-            <span className={mutedTextClass}>
+
+            {/* One string on purpose: status and score read together at a glance. */}
+            <span className={`font-mono ${mutedTextClass}`}>
               {submission.status}
               {submission.marks !== null && submission.marks !== undefined
                 ? ` · ${submission.marks}/${submission.assignmentMaxMarks}`
                 : ""}
             </span>
           </div>
-          <p className={mutedTextClass}>Submitted {formatDateTime(submission.submittedAt)}</p>
-          {submission.feedback && <p className="mt-1">{submission.feedback}</p>}
+
+          <p className={`mt-0.5 flex items-center gap-1.5 ${subtleTextClass}`}>
+            <Icon name="clock" size="sm" />
+            Submitted {formatDateTime(submission.submittedAt)}
+          </p>
+
+          {submission.feedback && (
+            <p className="mt-1 text-foreground-muted">{submission.feedback}</p>
+          )}
         </li>
       ))}
     </ul>

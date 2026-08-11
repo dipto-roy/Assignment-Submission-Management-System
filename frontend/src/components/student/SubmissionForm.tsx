@@ -3,10 +3,16 @@
 import { useState } from "react";
 import { createSubmission, updateSubmission } from "@/lib/api/submissions";
 import { isPastDeadline } from "@/lib/datetime";
-import { inputClass, mutedTextClass, primaryButtonClass } from "@/components/ui/styles";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
+import { Alert } from "@/components/ui/primitives";
+import { fieldLabelClass, subtleTextClass, textareaClass } from "@/components/ui/styles";
 import type { Assignment, Submission } from "@/types";
 
 const CONTENT_MAX_LENGTH = 20_000;
+
+/** Past this share of the limit the counter warns instead of sitting quiet. */
+const COUNTER_WARN_RATIO = 0.9;
 
 interface SubmissionFormProps {
   assignment: Assignment;
@@ -29,14 +35,15 @@ export function SubmissionForm({ assignment, submission, onSaved }: SubmissionFo
 
   if (isLocked) {
     return (
-      <div className="flex flex-col gap-2">
-        <p className={mutedTextClass}>
+      <div className="flex flex-col gap-3 rounded-lg border border-border-subtle bg-muted/60 p-4">
+        <p className="flex items-start gap-2 text-sm text-foreground-muted">
+          <Icon name="alert-circle" size="sm" className="mt-0.5 text-danger" />
           {submission
             ? "The deadline has passed — your submission is locked and can no longer be edited."
             : "The deadline has passed — this assignment can no longer be submitted."}
         </p>
         {submission && (
-          <p className="whitespace-pre-wrap text-sm text-black/70 dark:text-white/70">
+          <p className="whitespace-pre-wrap border-t border-border-subtle pt-3 text-sm leading-relaxed text-foreground">
             {submission.content}
           </p>
         )}
@@ -76,39 +83,40 @@ export function SubmissionForm({ assignment, submission, onSaved }: SubmissionFo
     }
   };
 
+  const isNearLimit = content.length > CONTENT_MAX_LENGTH * COUNTER_WARN_RATIO;
+
   return (
-    <div className="flex flex-col gap-2">
-      <label className="flex flex-col gap-1 text-sm">
-        <span>{submission ? "Update your answer" : "Your answer"}</span>
+    <div className="flex flex-col gap-3">
+      <label className={fieldLabelClass}>
+        <span className="flex items-center gap-1.5">
+          <Icon name="edit" size="sm" className="text-primary" />
+          {submission ? "Update your answer" : "Your answer"}
+        </span>
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          rows={5}
+          rows={6}
           maxLength={CONTENT_MAX_LENGTH}
           placeholder="Type your answer here…"
-          className={`${inputClass} w-full`}
+          className={textareaClass}
         />
       </label>
 
-      <p className={mutedTextClass}>
+      <p
+        className={`text-right font-mono ${
+          isNearLimit ? "text-xs font-medium text-accent-soft-foreground" : subtleTextClass
+        }`}
+      >
         {content.length.toLocaleString()} / {CONTENT_MAX_LENGTH.toLocaleString()} characters
       </p>
 
-      {error && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
-      {notice && (
-        <p role="status" className="text-sm text-green-700 dark:text-green-400">
-          {notice}
-        </p>
-      )}
+      {error && <Alert>{error}</Alert>}
+      {notice && <Alert tone="success">{notice}</Alert>}
 
       <div>
-        <button type="button" onClick={handleSave} disabled={isSaving} className={primaryButtonClass}>
+        <Button icon={submission ? "refresh" : "send"} isBusy={isSaving} onClick={handleSave}>
           {isSaving ? "Saving…" : submission ? "Update submission" : "Submit"}
-        </button>
+        </Button>
       </div>
     </div>
   );

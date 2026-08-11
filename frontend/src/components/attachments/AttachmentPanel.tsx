@@ -8,7 +8,10 @@ import {
   uploadAssignmentAttachment,
   uploadSubmissionAttachment,
 } from "@/lib/api/attachments";
-import { dangerButtonClass, mutedTextClass, subtleButtonClass } from "@/components/ui/styles";
+import { Button } from "@/components/ui/Button";
+import { Icon, type IconName } from "@/components/ui/Icon";
+import { Alert } from "@/components/ui/primitives";
+import { mutedTextClass, subtleTextClass } from "@/components/ui/styles";
 import type { Attachment } from "@/types";
 
 /**
@@ -25,6 +28,21 @@ const ALLOWED_EXTENSIONS = [
 
 /** Matches the default Storage:MaxFileSizeBytes (10 MB). */
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+
+/** Extension → glyph, so a list of files is scannable by shape rather than by reading. */
+const EXTENSION_ICON: Record<string, IconName> = {
+  ".png": "eye",
+  ".jpg": "eye",
+  ".jpeg": "eye",
+  ".gif": "eye",
+  ".webp": "eye",
+  ".zip": "layers",
+};
+
+const iconForFile = (fileName: string): IconName => {
+  const extension = fileName.slice(fileName.lastIndexOf(".")).toLowerCase();
+  return EXTENSION_ICON[extension] ?? "file-text";
+};
 
 export interface AttachmentPanelProps {
   /** Which owner the files hang off — decides the upload endpoint and the permission rules. */
@@ -130,33 +148,46 @@ export function AttachmentPanel({
   };
 
   return (
-    <section className="flex flex-col gap-2">
-      <h4 className="text-sm font-medium">{label}</h4>
+    <section className="flex flex-col gap-2.5">
+      <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+        <Icon name="paperclip" size="sm" className="text-primary" />
+        {label}
+      </h4>
 
       {items.length === 0 ? (
         <p className={mutedTextClass}>No files attached.</p>
       ) : (
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-1.5">
           {items.map((attachment) => (
-            <li key={attachment.id} className="flex flex-wrap items-center gap-2 text-sm">
+            <li
+              key={attachment.id}
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-border-subtle bg-muted/50 py-1 pl-2 pr-1 text-sm"
+            >
+              {/* The whole file name is the download control — a bigger target than an icon. */}
               <button
                 type="button"
                 onClick={() => handleDownload(attachment)}
-                className={subtleButtonClass}
+                className="inline-flex min-h-9 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1 text-left font-medium text-primary transition-colors duration-150 hover:text-primary-hover hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
-                {attachment.fileName}
+                <Icon name={iconForFile(attachment.fileName)} size="sm" />
+                <span className="truncate">{attachment.fileName}</span>
+                <Icon name="download" size="sm" className="opacity-60" />
               </button>
-              <span className={mutedTextClass}>{formatFileSize(attachment.sizeBytes)}</span>
+
+              <span className={`shrink-0 font-mono ${subtleTextClass}`}>
+                {formatFileSize(attachment.sizeBytes)}
+              </span>
+
               {canModify && (
-                <button
-                  type="button"
+                <Button
+                  variant="danger"
+                  icon="trash"
                   onClick={() => handleRemove(attachment)}
                   disabled={isBusy}
-                  className={dangerButtonClass}
                   aria-label={`Remove ${attachment.fileName}`}
                 >
                   Remove
-                </button>
+                </Button>
               )}
             </li>
           ))}
@@ -164,7 +195,9 @@ export function AttachmentPanel({
       )}
 
       {canModify && (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* The native picker is styled through its file-selector button rather than being
+              hidden behind a proxy control, which keeps the label association intact. */}
           <input
             ref={inputRef}
             type="file"
@@ -172,17 +205,29 @@ export function AttachmentPanel({
             disabled={isBusy}
             accept={ALLOWED_EXTENSIONS.join(",")}
             aria-label="Attach a file"
-            className="text-sm"
+            className="max-w-full cursor-pointer text-sm text-foreground-muted
+              file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-border-strong file:bg-surface
+              file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground
+              hover:file:border-primary hover:file:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
           />
-          {isBusy && <span className={mutedTextClass}>Working…</span>}
+
+          {isBusy && (
+            <span role="status" className={`inline-flex items-center gap-1.5 ${mutedTextClass}`}>
+              <Icon name="refresh" size="sm" className="app-spin" />
+              Working…
+            </span>
+          )}
         </div>
       )}
 
-      {error && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
+      {canModify && (
+        <p className={subtleTextClass}>
+          Up to {formatFileSize(MAX_FILE_SIZE_BYTES)}. Documents, spreadsheets, slides, images, or a
+          zip.
         </p>
       )}
+
+      {error && <Alert>{error}</Alert>}
     </section>
   );
 }

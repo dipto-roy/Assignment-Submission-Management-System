@@ -4,7 +4,10 @@ import { useState } from "react";
 import { AttachmentPanel } from "@/components/attachments/AttachmentPanel";
 import { SubmissionForm } from "@/components/student/SubmissionForm";
 import { describeTimeRemaining, formatDateTime, isPastDeadline } from "@/lib/datetime";
-import { cardClass, mutedTextClass, subtleButtonClass } from "@/components/ui/styles";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
+import { Badge } from "@/components/ui/primitives";
+import { cardClass, mutedTextClass } from "@/components/ui/styles";
 import type { Assignment, Submission } from "@/types";
 
 interface AssignmentCardProps {
@@ -21,30 +24,60 @@ export function AssignmentCard({ assignment, submission, onSaved }: AssignmentCa
   return (
     <li className={cardClass}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-medium">{assignment.title}</h3>
+            <h3 className="font-semibold text-foreground">{assignment.title}</h3>
             <SubmissionBadge submission={submission} isLocked={isLocked} />
           </div>
-          <p className={mutedTextClass}>
-            {assignment.subjectName} — {assignment.className} · due{" "}
-            {formatDateTime(assignment.deadline)} · {assignment.maxMarks} marks
+
+          <p className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 ${mutedTextClass}`}>
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name="book-open" size="sm" />
+              {assignment.subjectName}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name="users" size="sm" />
+              {assignment.className}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name="calendar-clock" size="sm" />
+              {formatDateTime(assignment.deadline)}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name="check" size="sm" />
+              <span className="font-mono">{assignment.maxMarks}</span> marks
+            </span>
           </p>
-          <p className={`text-sm ${isLocked ? "text-red-600 dark:text-red-400" : "text-black/60 dark:text-white/60"}`}>
+
+          {/* Colour alone never carries the deadline state — the icon changes with it. */}
+          <p
+            className={`mt-1 inline-flex items-center gap-1.5 text-sm font-medium ${
+              isLocked ? "text-danger" : "text-foreground-muted"
+            }`}
+          >
+            <Icon name={isLocked ? "alert-circle" : "clock"} size="sm" />
             {describeTimeRemaining(assignment.deadline)}
           </p>
         </div>
 
-        <button type="button" onClick={() => setIsExpanded(!isExpanded)} className={subtleButtonClass}>
+        <Button
+          variant={isExpanded ? "subtle" : "secondary"}
+          icon={isExpanded ? "eye-off" : "eye"}
+          onClick={() => setIsExpanded(!isExpanded)}
+          aria-expanded={isExpanded}
+        >
           {isExpanded ? "Close" : submission ? "View / edit" : "Open"}
-        </button>
+        </Button>
       </div>
 
       {isExpanded && (
-        <div className="mt-4 flex flex-col gap-4 border-t border-black/10 pt-4 dark:border-white/15">
+        <div className="app-animate-in mt-5 flex flex-col gap-5 border-t border-border-subtle pt-5">
           <div>
-            <h4 className="text-sm font-medium">Instructions</h4>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-black/70 dark:text-white/70">
+            <h4 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+              <Icon name="file-text" size="sm" className="text-primary" />
+              Instructions
+            </h4>
+            <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-foreground-muted">
               {assignment.description}
             </p>
           </div>
@@ -72,28 +105,29 @@ export function AssignmentCard({ assignment, submission, onSaved }: AssignmentCa
           )}
 
           {submission && (
-            <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-              <div className="flex gap-2">
-                <dt className="text-black/50 dark:text-white/50">Submitted</dt>
-                <dd>{formatDateTime(submission.submittedAt)}</dd>
-              </div>
+            <dl className="grid gap-x-6 gap-y-2 rounded-lg bg-muted/60 p-4 text-sm sm:grid-cols-2">
+              <DetailRow icon="send" label="Submitted">
+                {formatDateTime(submission.submittedAt)}
+              </DetailRow>
+
               {submission.updatedAt && (
-                <div className="flex gap-2">
-                  <dt className="text-black/50 dark:text-white/50">Last updated</dt>
-                  <dd>{formatDateTime(submission.updatedAt)}</dd>
-                </div>
+                <DetailRow icon="refresh" label="Last updated">
+                  {formatDateTime(submission.updatedAt)}
+                </DetailRow>
               )}
-              <div className="flex gap-2">
-                <dt className="text-black/50 dark:text-white/50">Marks</dt>
-                <dd>
+
+              <DetailRow icon="check-circle" label="Marks">
+                <span className="font-mono">
                   {submission.marks ?? "Not graded"}
                   {submission.marks != null && ` / ${assignment.maxMarks}`}
-                </dd>
-              </div>
+                </span>
+              </DetailRow>
+
               {submission.feedback && (
-                <div className="flex gap-2 sm:col-span-2">
-                  <dt className="text-black/50 dark:text-white/50">Feedback</dt>
-                  <dd className="whitespace-pre-wrap">{submission.feedback}</dd>
+                <div className="sm:col-span-2">
+                  <DetailRow icon="mail" label="Feedback">
+                    <span className="whitespace-pre-wrap">{submission.feedback}</span>
+                  </DetailRow>
                 </div>
               )}
             </dl>
@@ -106,17 +140,47 @@ export function AssignmentCard({ assignment, submission, onSaved }: AssignmentCa
   );
 }
 
+function DetailRow({
+  icon,
+  label,
+  children,
+}: {
+  icon: "send" | "refresh" | "check-circle" | "mail";
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex gap-2">
+      <dt className="flex shrink-0 items-center gap-1.5 text-foreground-subtle">
+        <Icon name={icon} size="sm" />
+        {label}
+      </dt>
+      <dd className="min-w-0 text-foreground">{children}</dd>
+    </div>
+  );
+}
+
 function SubmissionBadge({ submission, isLocked }: { submission?: Submission; isLocked: boolean }) {
-  const label = submission ? submission.status : isLocked ? "Missed" : "Not submitted";
+  if (submission) {
+    const isComplete = submission.status === "Graded" || submission.status === "Returned";
+    return (
+      <Badge tone={isComplete ? "success" : "primary"} icon={isComplete ? "check-circle" : "send"}>
+        {submission.status}
+      </Badge>
+    );
+  }
 
-  const tone =
-    submission?.status === "Graded" || submission?.status === "Returned"
-      ? "bg-green-600/10 text-green-700 dark:text-green-400"
-      : submission
-        ? "bg-blue-600/10 text-blue-700 dark:text-blue-400"
-        : isLocked
-          ? "bg-red-600/10 text-red-700 dark:text-red-400"
-          : "bg-black/10 text-black/60 dark:bg-white/10 dark:text-white/60";
+  if (isLocked) {
+    return (
+      <Badge tone="danger" icon="alert-circle">
+        Missed
+      </Badge>
+    );
+  }
 
-  return <span className={`rounded-full px-2 py-0.5 text-xs ${tone}`}>{label}</span>;
+  return (
+    <Badge tone="neutral" icon="clock">
+      Not submitted
+    </Badge>
+  );
 }

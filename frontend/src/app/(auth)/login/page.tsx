@@ -3,6 +3,10 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
+import { Alert } from "@/components/ui/primitives";
+import { fieldLabelClass, inputClass } from "@/components/ui/styles";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -28,50 +32,75 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-8">
+    <main
+      id="main-content"
+      className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:px-8"
+    >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(55%_60%_at_50%_0%,var(--app-primary-soft),transparent)] opacity-70"
+      />
+
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-lg border border-black/10 p-6 dark:border-white/10"
+        className="app-animate-in relative w-full max-w-sm rounded-2xl border border-border-subtle bg-surface p-7 shadow-lg"
       >
-        <h1 className="mb-4 text-xl font-semibold">Sign in</h1>
+        <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-on-primary shadow-sm">
+          <Icon name="graduation-cap" size="xl" />
+        </span>
 
-        <label className="mb-3 block text-sm">
-          Email
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm dark:border-white/20 dark:bg-transparent"
-          />
-        </label>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Sign in</h1>
+        <p className="mb-6 mt-1 text-sm text-foreground-muted">
+          Use the account your school issued you.
+        </p>
 
-        <label className="mb-4 block text-sm">
-          Password
-          <input
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded border border-black/20 px-3 py-2 text-sm dark:border-white/20 dark:bg-transparent"
-          />
-        </label>
+        <div className="flex flex-col gap-4">
+          <label className={fieldLabelClass}>
+            Email
+            <span className="relative block">
+              <Icon
+                name="mail"
+                size="sm"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle"
+              />
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@school.edu"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={`${inputClass} pl-9`}
+              />
+            </span>
+          </label>
 
-        {error && (
-          <p role="alert" className="mb-4 text-sm text-red-600 dark:text-red-400">
-            {error}
-          </p>
-        )}
+          <label className={fieldLabelClass}>
+            Password
+            <span className="relative block">
+              <Icon
+                name="shield"
+                size="sm"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle"
+              />
+              <input
+                type="password"
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={`${inputClass} pl-9`}
+              />
+            </span>
+          </label>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full rounded bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
-        >
-          {isSubmitting ? "Signing in…" : "Sign in"}
-        </button>
+          {error && <Alert>{error}</Alert>}
+
+          <Button type="submit" icon="log-in" isBusy={isSubmitting} className="w-full">
+            {isSubmitting ? "Signing in…" : "Sign in"}
+          </Button>
+        </div>
       </form>
     </main>
   );

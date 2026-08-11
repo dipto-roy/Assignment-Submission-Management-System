@@ -3,12 +3,16 @@
 import { useEffect, useState } from "react";
 import { enrollStudent, getClassStudents, getUsers, unenrollStudent } from "@/lib/api/admin";
 import { useClasses } from "@/lib/hooks/useClasses";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import {
-  dangerButtonClass,
-  inputClass,
-  mutedTextClass,
-  primaryButtonClass,
-} from "@/components/ui/styles";
+  Alert,
+  Badge,
+  EmptyState,
+  LoadingLine,
+  SectionHeading,
+} from "@/components/ui/primitives";
+import { compactInputClass, dividedListClass, subtleTextClass } from "@/components/ui/styles";
 import type { EnrolledStudent, UserSummary } from "@/types";
 
 /**
@@ -84,18 +88,19 @@ export function EnrollmentPanel() {
 
   return (
     <section>
-      <h2 className="mb-1 text-lg font-semibold">Enrollment</h2>
-      <p className={`mb-3 ${mutedTextClass}`}>
-        A student belongs to one class at a time — enrolling them here moves them out of their
-        previous class.
-      </p>
+      <SectionHeading
+        icon="user-plus"
+        title="Enrollment"
+        description="A student belongs to one class at a time — enrolling them here moves them out of their previous class."
+        meta={students ? <Badge tone="primary">{students.length} enrolled</Badge> : undefined}
+      />
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-5 flex flex-wrap items-end gap-2">
         <select
           value={classId}
           onChange={(e) => setClassId(e.target.value)}
           aria-label="Class"
-          className={inputClass}
+          className={compactInputClass}
         >
           <option value="">Select class…</option>
           {classes.map((c) => (
@@ -111,7 +116,7 @@ export function EnrollmentPanel() {
           onChange={(e) => setSelectedStudentId(e.target.value)}
           disabled={!classId}
           aria-label="Student to enroll"
-          className={inputClass}
+          className={compactInputClass}
         >
           <option value="">Select student…</option>
           {enrollable.map((s) => (
@@ -121,48 +126,53 @@ export function EnrollmentPanel() {
           ))}
         </select>
 
-        <button
-          type="button"
-          onClick={handleEnroll}
-          disabled={!classId || !selectedStudentId}
-          className={primaryButtonClass}
-        >
+        <Button icon="user-plus" onClick={handleEnroll} disabled={!classId || !selectedStudentId}>
           Enroll
-        </button>
+        </Button>
       </div>
 
-      {error && (
-        <p role="alert" className="mb-3 text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
+      {error && <Alert className="mb-3">{error}</Alert>}
 
       {isLoadingClasses ? (
-        <p className={mutedTextClass}>Loading…</p>
+        <LoadingLine label="Loading classes…" />
       ) : !classId ? (
-        <p className={mutedTextClass}>Select a class to see its roster.</p>
+        <EmptyState
+          icon="users"
+          title="Select a class"
+          description="Pick a class above to see and edit its roster."
+        />
       ) : students === null ? (
-        <p className={mutedTextClass}>Loading roster…</p>
+        <LoadingLine label="Loading roster…" />
+      ) : students.length === 0 ? (
+        <EmptyState
+          icon="user-plus"
+          title="No students enrolled in this class"
+          description="Choose a student above and enroll them to build the roster."
+        />
       ) : (
-        <ul className="divide-y divide-black/10 dark:divide-white/10">
+        <ul className={dividedListClass}>
           {students.map((student) => (
-            <li key={student.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-              <span>
-                {student.name}{" "}
-                <span className="text-black/50 dark:text-white/50">{student.email}</span>
+            <li key={student.id} className="flex items-center justify-between gap-2 py-2.5 text-sm">
+              <span className="flex min-w-0 items-center gap-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-info-soft text-info">
+                  <Icon name="graduation-cap" size="md" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-medium text-foreground">{student.name}</span>
+                  <span className={`block truncate ${subtleTextClass}`}>{student.email}</span>
+                </span>
               </span>
-              <button
-                type="button"
+
+              <Button
+                variant="danger"
+                icon="user-minus"
                 onClick={() => handleUnenroll(student.id)}
-                className={dangerButtonClass}
+                aria-label={`Unenroll ${student.name}`}
               >
                 Unenroll
-              </button>
+              </Button>
             </li>
           ))}
-          {students.length === 0 && (
-            <li className={`py-2 ${mutedTextClass}`}>No students enrolled in this class.</li>
-          )}
         </ul>
       )}
     </section>

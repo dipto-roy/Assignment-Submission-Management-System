@@ -3,12 +3,16 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createClass, deleteClass, getClasses } from "@/lib/api/admin";
 import type { SchoolClass } from "@/types";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import {
-  dangerButtonClass,
-  inputClass,
-  mutedTextClass,
-  primaryButtonClass,
-} from "@/components/ui/styles";
+  Alert,
+  Badge,
+  EmptyState,
+  LoadingLine,
+  SectionHeading,
+} from "@/components/ui/primitives";
+import { compactInputClass, dividedListClass } from "@/components/ui/styles";
 
 export function ClassesPanel() {
   const [classes, setClasses] = useState<SchoolClass[]>([]);
@@ -48,45 +52,71 @@ export function ClassesPanel() {
 
   return (
     <section>
-      <h2 className="mb-3 text-lg font-semibold">Classes</h2>
+      <SectionHeading
+        icon="users"
+        title="Classes"
+        description="The groups students belong to. A class holds subjects and enrollment."
+        meta={classes.length > 0 ? <Badge tone="primary">{classes.length}</Badge> : undefined}
+      />
 
-      <form onSubmit={handleCreate} className="mb-4 flex flex-wrap gap-2">
+      <form onSubmit={handleCreate} className="mb-5 flex flex-wrap items-end gap-2">
         <input
           placeholder="Name (e.g. Class 10)"
+          aria-label="Class name"
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className={inputClass}
+          className={compactInputClass}
         />
         <input
           placeholder="Section (e.g. A)"
+          aria-label="Section"
           value={section}
           onChange={(e) => setSection(e.target.value)}
-          className={inputClass}
+          className={compactInputClass}
         />
-        <button type="submit" className={primaryButtonClass}>
+        <Button type="submit" icon="plus">
           Add
-        </button>
+        </Button>
       </form>
 
-      {error && <p role="alert" className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <Alert className="mb-3">{error}</Alert>}
 
       {isLoading ? (
-        <p className={mutedTextClass}>Loading…</p>
+        <LoadingLine label="Loading classes…" />
+      ) : classes.length === 0 ? (
+        <EmptyState
+          icon="users"
+          title="No classes yet"
+          description="Create a class before adding students or subjects."
+        />
       ) : (
-        <ul className="divide-y divide-black/10 dark:divide-white/10">
+        <ul className={dividedListClass}>
           {classes.map((c) => (
-            <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-              <span>
-                {c.name}
-                {c.section ? ` — ${c.section}` : ""}
+            <li
+              key={c.id}
+              className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm"
+            >
+              <span className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-soft-foreground">
+                  <Icon name="users" size="md" />
+                </span>
+                <span className="font-medium text-foreground">
+                  {c.name}
+                  {c.section ? ` — ${c.section}` : ""}
+                </span>
               </span>
-              <button onClick={() => handleDelete(c.id)} className={dangerButtonClass}>
+
+              <Button
+                variant="danger"
+                icon="trash"
+                onClick={() => handleDelete(c.id)}
+                aria-label={`Delete ${c.name}`}
+              >
                 Delete
-              </button>
+              </Button>
             </li>
           ))}
-          {classes.length === 0 && <li className={`py-2 ${mutedTextClass}`}>No classes yet.</li>}
         </ul>
       )}
     </section>

@@ -2,22 +2,26 @@
 
 import { useRequireRole } from "@/lib/auth/useRequireRole";
 import { StudentDashboard } from "@/components/student/StudentDashboard";
-import { mutedTextClass } from "@/components/ui/styles";
+import { LoadingLine, PageHeader } from "@/components/ui/primitives";
 
 export default function StudentDashboardPage() {
   const { isLoading } = useRequireRole("Student");
 
   if (isLoading) {
     return (
-      <main className="p-8">
-        <p className={mutedTextClass}>Loading…</p>
+      <main id="main-content" className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
+        <LoadingLine label="Checking your access…" />
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-4xl p-4 sm:p-8">
-      <h1 className="mb-6 text-xl font-semibold">Student Dashboard</h1>
+    <main id="main-content" className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
+      <PageHeader
+        icon="graduation-cap"
+        title="Student dashboard"
+        description="Everything published for your class, and what you have handed in."
+      />
 
       <StudentDashboard />
     </main>

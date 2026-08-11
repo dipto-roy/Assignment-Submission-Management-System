@@ -4,14 +4,25 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createUser, deleteUser, getUsers } from "@/lib/api/admin";
 import { useClasses } from "@/lib/hooks/useClasses";
 import type { UserRole, UserSummary } from "@/types";
+import { Button } from "@/components/ui/Button";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import {
-  dangerButtonClass,
-  inputClass,
-  mutedTextClass,
-  primaryButtonClass,
-} from "@/components/ui/styles";
+  Alert,
+  Badge,
+  EmptyState,
+  LoadingLine,
+  SectionHeading,
+} from "@/components/ui/primitives";
+import { compactInputClass, dividedListClass, subtleTextClass } from "@/components/ui/styles";
 
 const ROLES: UserRole[] = ["Admin", "Teacher", "Student"];
+
+/** Role → its badge so a roster is scannable without reading every line. */
+const ROLE_BADGE: Record<UserRole, { tone: "danger" | "primary" | "info"; icon: IconName }> = {
+  Admin: { tone: "danger", icon: "shield" },
+  Teacher: { tone: "primary", icon: "book-open" },
+  Student: { tone: "info", icon: "graduation-cap" },
+};
 
 export function UsersPanel() {
   const { classes } = useClasses();
@@ -63,36 +74,62 @@ export function UsersPanel() {
 
   return (
     <section>
-      <h2 className="mb-3 text-lg font-semibold">Users</h2>
+      <SectionHeading
+        icon="users"
+        title="Users"
+        description="Create accounts and remove people who have left."
+        meta={users.length > 0 ? <Badge tone="primary">{users.length}</Badge> : undefined}
+      />
 
-      <form onSubmit={handleCreate} className="mb-4 flex flex-wrap gap-2">
-        <input placeholder="Name" required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+      <form onSubmit={handleCreate} className="mb-5 flex flex-wrap items-end gap-2">
+        <input
+          placeholder="Name"
+          aria-label="Name"
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className={compactInputClass}
+        />
         <input
           type="email"
           placeholder="Email"
+          aria-label="Email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className={inputClass}
+          className={compactInputClass}
         />
         <input
           type="password"
           placeholder="Password (min 8 chars)"
+          aria-label="Password"
           required
           minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className={inputClass}
+          className={compactInputClass}
         />
-        <select value={role} onChange={(e) => setRole(e.target.value as UserRole)} className={inputClass}>
+        <select
+          value={role}
+          aria-label="Role"
+          onChange={(e) => setRole(e.target.value as UserRole)}
+          className={compactInputClass}
+        >
           {ROLES.map((r) => (
             <option key={r} value={r}>
               {r}
             </option>
           ))}
         </select>
+
         {role === "Student" && (
-          <select required value={classId} onChange={(e) => setClassId(e.target.value)} className={inputClass}>
+          <select
+            required
+            aria-label="Class"
+            value={classId}
+            onChange={(e) => setClassId(e.target.value)}
+            className={compactInputClass}
+          >
             <option value="">Select class…</option>
             {classes.map((c) => (
               <option key={c.id} value={c.id}>
@@ -102,28 +139,56 @@ export function UsersPanel() {
             ))}
           </select>
         )}
-        <button type="submit" className={primaryButtonClass}>
+
+        <Button type="submit" icon="user-plus">
           Add
-        </button>
+        </Button>
       </form>
 
-      {error && <p role="alert" className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <Alert className="mb-3">{error}</Alert>}
 
       {isLoading ? (
-        <p className={mutedTextClass}>Loading…</p>
+        <LoadingLine label="Loading users…" />
+      ) : users.length === 0 ? (
+        <EmptyState
+          icon="users"
+          title="No users yet"
+          description="Add the first teacher or student with the form above."
+        />
       ) : (
-        <ul className="divide-y divide-black/10 dark:divide-white/10">
-          {users.map((u) => (
-            <li key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-              <span>
-                {u.name} <span className="text-black/50 dark:text-white/50">({u.role}) — {u.email}</span>
-              </span>
-              <button onClick={() => handleDelete(u.id)} className={dangerButtonClass}>
-                Delete
-              </button>
-            </li>
-          ))}
-          {users.length === 0 && <li className={`py-2 ${mutedTextClass}`}>No users yet.</li>}
+        <ul className={dividedListClass}>
+          {users.map((u) => {
+            const badge = ROLE_BADGE[u.role];
+
+            return (
+              <li
+                key={u.id}
+                className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm"
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-foreground-muted">
+                    <Icon name="user" size="md" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block font-medium text-foreground">{u.name}</span>
+                    <span className={`block truncate ${subtleTextClass}`}>{u.email}</span>
+                  </span>
+                  <Badge tone={badge.tone} icon={badge.icon}>
+                    {u.role}
+                  </Badge>
+                </span>
+
+                <Button
+                  variant="danger"
+                  icon="trash"
+                  onClick={() => handleDelete(u.id)}
+                  aria-label={`Delete ${u.name}`}
+                >
+                  Delete
+                </Button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

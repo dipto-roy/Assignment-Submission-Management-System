@@ -12,12 +12,16 @@ import { AssignmentForm } from "@/components/teacher/AssignmentForm";
 import { SubmissionsReview } from "@/components/teacher/SubmissionsReview";
 import { useTeacherSubjects } from "@/lib/hooks/useTeacherSubjects";
 import { describeTimeRemaining, formatDateTime } from "@/lib/datetime";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import {
-  cardClass,
-  dangerButtonClass,
-  mutedTextClass,
-  subtleButtonClass,
-} from "@/components/ui/styles";
+  Alert,
+  Badge,
+  EmptyState,
+  LoadingLine,
+  SectionHeading,
+} from "@/components/ui/primitives";
+import { cardClass, mutedTextClass, panelClass } from "@/components/ui/styles";
 import type { Assignment, CreateAssignmentInput } from "@/types";
 import { AttachmentPanel } from "@/components/attachments/AttachmentPanel";
 
@@ -83,95 +87,134 @@ export function AssignmentsPanel() {
   };
 
   return (
-    <section className="flex flex-col gap-6">
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">New assignment</h2>
+    <section className="flex flex-col gap-8">
+      <div className={panelClass}>
+        <SectionHeading
+          icon="plus"
+          title="New assignment"
+          description="Create it as a draft, then publish when the brief is final."
+        />
+
         {isLoadingSubjects ? (
-          <p className={mutedTextClass}>Loading subjects…</p>
+          <LoadingLine label="Loading subjects…" />
         ) : subjects.length === 0 ? (
-          <p className={mutedTextClass}>
-            You are not assigned to any subject yet. Ask an admin to assign one.
-          </p>
+          <EmptyState
+            icon="book-open"
+            title="No subjects assigned to you"
+            description="Ask an admin to assign you a subject before creating assignments."
+          />
         ) : (
           <AssignmentForm subjects={subjects} onSubmit={handleCreate} />
         )}
-        {subjectsError && (
-          <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
-            {subjectsError}
-          </p>
-        )}
+
+        {subjectsError && <Alert className="mt-3">{subjectsError}</Alert>}
       </div>
 
       <div>
-        <h2 className="mb-3 text-lg font-semibold">My assignments</h2>
+        <SectionHeading
+          icon="layers"
+          title="My assignments"
+          meta={
+            assignments.length > 0 ? (
+              <Badge tone="primary">{assignments.length}</Badge>
+            ) : undefined
+          }
+        />
 
-        {error && (
-          <p role="alert" className="mb-3 text-sm text-red-600 dark:text-red-400">
-            {error}
-          </p>
-        )}
+        {error && <Alert className="mb-3">{error}</Alert>}
 
         {isLoading ? (
-          <p className={mutedTextClass}>Loading…</p>
+          <LoadingLine label="Loading assignments…" />
         ) : assignments.length === 0 ? (
-          <p className={mutedTextClass}>No assignments yet.</p>
+          <EmptyState
+            icon="inbox"
+            title="No assignments yet"
+            description="The first assignment you create for your subjects will appear here."
+          />
         ) : (
           <ul className="flex flex-col gap-4">
             {assignments.map((assignment) => (
               <li key={assignment.id} className={cardClass}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-medium">{assignment.title}</h3>
+                      <h3 className="font-semibold text-foreground">{assignment.title}</h3>
                       <StatusBadge status={assignment.status} />
                     </div>
-                    <p className={mutedTextClass}>
-                      {assignment.subjectName} — {assignment.className} · due{" "}
-                      {formatDateTime(assignment.deadline)} ·{" "}
-                      {describeTimeRemaining(assignment.deadline)} · {assignment.maxMarks} marks
+
+                    <p
+                      className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 ${mutedTextClass}`}
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        <Icon name="book-open" size="sm" />
+                        {assignment.subjectName}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Icon name="users" size="sm" />
+                        {assignment.className}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Icon name="calendar-clock" size="sm" />
+                        {formatDateTime(assignment.deadline)}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Icon name="clock" size="sm" />
+                        {describeTimeRemaining(assignment.deadline)}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Icon name="check" size="sm" />
+                        <span className="font-mono">{assignment.maxMarks}</span> marks
+                      </span>
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Button
+                      variant="subtle"
+                      icon={assignment.status === "Published" ? "eye-off" : "upload"}
                       onClick={() => handleTogglePublish(assignment)}
-                      className={subtleButtonClass}
                     >
                       {assignment.status === "Published" ? "Unpublish" : "Publish"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingId(editingId === assignment.id ? null : assignment.id)}
-                      className={subtleButtonClass}
+                    </Button>
+
+                    <Button
+                      variant="subtle"
+                      icon={editingId === assignment.id ? "x" : "edit"}
+                      aria-expanded={editingId === assignment.id}
+                      onClick={() =>
+                        setEditingId(editingId === assignment.id ? null : assignment.id)
+                      }
                     >
                       {editingId === assignment.id ? "Close editor" : "Edit"}
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+
+                    <Button
+                      variant="subtle"
+                      icon="users"
+                      aria-expanded={expandedId === assignment.id}
                       onClick={() =>
                         setExpandedId(expandedId === assignment.id ? null : assignment.id)
                       }
-                      className={subtleButtonClass}
                     >
                       {expandedId === assignment.id ? "Hide submissions" : "Submissions"}
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+
+                    <Button
+                      variant="danger"
+                      icon="trash"
                       onClick={() => handleDelete(assignment.id)}
-                      className={dangerButtonClass}
                     >
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
-                <p className="mt-2 whitespace-pre-wrap text-sm text-black/70 dark:text-white/70">
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground-muted">
                   {assignment.description}
                 </p>
 
                 {/* The teacher owns the assignment, so they may add and remove its files. */}
-                <div className="mt-3">
+                <div className="mt-4">
                   <AttachmentPanel
                     owner="assignment"
                     ownerId={assignment.id}
@@ -182,7 +225,7 @@ export function AssignmentsPanel() {
                 </div>
 
                 {editingId === assignment.id && (
-                  <div className="mt-4 border-t border-black/10 pt-4 dark:border-white/15">
+                  <div className="app-animate-in mt-5 border-t border-border-subtle pt-5">
                     <AssignmentForm
                       subjects={subjects}
                       assignment={assignment}
@@ -193,7 +236,7 @@ export function AssignmentsPanel() {
                 )}
 
                 {expandedId === assignment.id && (
-                  <div className="mt-4 border-t border-black/10 pt-4 dark:border-white/15">
+                  <div className="app-animate-in mt-5 border-t border-border-subtle pt-5">
                     <SubmissionsReview
                       assignmentId={assignment.id}
                       maxMarks={assignment.maxMarks}
@@ -211,15 +254,10 @@ export function AssignmentsPanel() {
 
 function StatusBadge({ status }: { status: Assignment["status"] }) {
   const isPublished = status === "Published";
+
   return (
-    <span
-      className={`rounded-full px-2 py-0.5 text-xs ${
-        isPublished
-          ? "bg-green-600/10 text-green-700 dark:text-green-400"
-          : "bg-black/10 text-black/60 dark:bg-white/10 dark:text-white/60"
-      }`}
-    >
+    <Badge tone={isPublished ? "success" : "neutral"} icon={isPublished ? "check-circle" : "edit"}>
       {status}
-    </span>
+    </Badge>
   );
 }

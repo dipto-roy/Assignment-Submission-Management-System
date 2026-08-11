@@ -7,9 +7,19 @@ import {
   setSubmissionStatus,
 } from "@/lib/api/submissions";
 import { formatDateTime } from "@/lib/datetime";
-import { inputClass, mutedTextClass, primaryButtonClass } from "@/components/ui/styles";
-import type { SubmissionDetail, SubmissionStatus } from "@/types";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
+import { Alert, EmptyState, LoadingLine } from "@/components/ui/primitives";
 import { AttachmentPanel } from "@/components/attachments/AttachmentPanel";
+import {
+  inputClass,
+  subtleTextClass,
+  tableClass,
+  tableHeadClass,
+  tableRowClass,
+  textareaClass,
+} from "@/components/ui/styles";
+import type { SubmissionDetail, SubmissionStatus } from "@/types";
 
 const SUBMISSION_STATUSES: SubmissionStatus[] = ["Submitted", "Late", "Graded", "Returned"];
 
@@ -61,54 +71,63 @@ export function SubmissionsReview({ assignmentId, maxMarks }: SubmissionsReviewP
   };
 
   if (isLoading) {
-    return <p className={mutedTextClass}>Loading submissions…</p>;
+    return <LoadingLine label="Loading submissions…" />;
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {error && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
+    <div className="flex flex-col gap-4">
+      {error && <Alert>{error}</Alert>}
 
       {submissions.length === 0 ? (
-        <p className={mutedTextClass}>No submissions yet.</p>
+        <EmptyState
+          icon="inbox"
+          title="No submissions yet."
+          description="Students who hand this assignment in will appear here for grading."
+        />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-160 text-left text-sm">
-            <thead className="border-b border-black/10 text-xs uppercase text-black/50 dark:border-white/15 dark:text-white/50">
+        <div className="overflow-x-auto rounded-xl border border-border-subtle bg-surface">
+          <table className={tableClass}>
+            <thead className={tableHeadClass}>
               <tr>
-                <th className="py-2 pr-3 font-medium">Student</th>
-                <th className="py-2 pr-3 font-medium">Submitted</th>
-                <th className="py-2 pr-3 font-medium">Status</th>
-                <th className="py-2 pr-3 font-medium">Marks</th>
-                <th className="py-2 font-medium">Grade &amp; feedback</th>
+                <th className="px-4 py-3">Student</th>
+                <th className="px-4 py-3">Submitted</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Marks</th>
+                <th className="px-4 py-3">Grade &amp; feedback</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-black/10 dark:divide-white/10">
+            <tbody className="divide-y divide-border-subtle">
               {submissions.map((submission) => (
-                <tr key={submission.id} className="align-top">
-                  <td className="py-3 pr-3">
-                    <div>{submission.studentName}</div>
-                    <div className="text-xs text-black/50 dark:text-white/50">
-                      {submission.studentEmail}
+                <tr key={submission.id} className={tableRowClass}>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-soft-foreground">
+                        <Icon name="user" size="sm" />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="font-medium text-foreground">{submission.studentName}</div>
+                        <div className={subtleTextClass}>{submission.studentEmail}</div>
+                      </div>
                     </div>
                   </td>
-                  <td className="py-3 pr-3">
-                    <div>{formatDateTime(submission.submittedAt)}</div>
+
+                  <td className="px-4 py-3">
+                    <div className="text-foreground">{formatDateTime(submission.submittedAt)}</div>
                     {submission.updatedAt && (
-                      <div className="text-xs text-black/50 dark:text-white/50">
+                      <div className={subtleTextClass}>
                         updated {formatDateTime(submission.updatedAt)}
                       </div>
                     )}
                   </td>
-                  <td className="py-3 pr-3">
+
+                  <td className="px-4 py-3">
                     <select
                       value={submission.status}
-                      onChange={(e) => handleStatusChange(submission.id, e.target.value as SubmissionStatus)}
+                      onChange={(e) =>
+                        handleStatusChange(submission.id, e.target.value as SubmissionStatus)
+                      }
                       aria-label={`Status for ${submission.studentName}`}
-                      className={inputClass}
+                      className={`${inputClass} min-w-32`}
                     >
                       {SUBMISSION_STATUSES.map((status) => (
                         <option key={status} value={status}>
@@ -117,10 +136,12 @@ export function SubmissionsReview({ assignmentId, maxMarks }: SubmissionsReviewP
                       ))}
                     </select>
                   </td>
-                  <td className="py-3 pr-3">
+
+                  <td className="px-4 py-3 font-mono text-foreground">
                     {submission.marks ?? "—"} / {submission.assignmentMaxMarks}
                   </td>
-                  <td className="py-3">
+
+                  <td className="px-4 py-3">
                     <GradeForm
                       submission={submission}
                       maxMarks={maxMarks}
@@ -135,32 +156,41 @@ export function SubmissionsReview({ assignmentId, maxMarks }: SubmissionsReviewP
         </div>
       )}
 
-      <details className="text-sm">
-        <summary className="cursor-pointer text-black/60 dark:text-white/60">
-          View submitted answers
-        </summary>
-        <ul className="mt-2 flex flex-col gap-3">
-          {submissions.map((submission) => (
-            <li key={submission.id}>
-              <p className="font-medium">{submission.studentName}</p>
-              <p className="whitespace-pre-wrap text-black/70 dark:text-white/70">
-                {submission.content}
-              </p>
-              {/* Read-only: marking the work does not entitle a teacher to delete it. */}
-              {submission.attachments.length > 0 && (
-                <div className="mt-2">
-                  <AttachmentPanel
-                    owner="submission"
-                    ownerId={submission.id}
-                    attachments={submission.attachments}
-                    label="Submitted files"
-                  />
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      </details>
+      {submissions.length > 0 && (
+        <details className="group rounded-xl border border-border-subtle bg-surface">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-foreground transition-colors duration-150 hover:bg-muted">
+            <Icon
+              name="chevron-down"
+              size="sm"
+              className="text-primary transition-transform duration-200 group-open:rotate-180"
+            />
+            View submitted answers
+          </summary>
+
+          <ul className="divide-y divide-border-subtle border-t border-border-subtle">
+            {submissions.map((submission) => (
+              <li key={submission.id} className="px-4 py-3 text-sm">
+                <p className="font-medium text-foreground">{submission.studentName}</p>
+                <p className="mt-1 whitespace-pre-wrap leading-relaxed text-foreground-muted">
+                  {submission.content}
+                </p>
+
+                {/* Read-only: marking the work does not entitle a teacher to delete it. */}
+                {submission.attachments.length > 0 && (
+                  <div className="mt-3">
+                    <AttachmentPanel
+                      owner="submission"
+                      ownerId={submission.id}
+                      attachments={submission.attachments}
+                      label="Submitted files"
+                    />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }
@@ -212,7 +242,7 @@ function GradeForm({ submission, maxMarks, onGraded, onError }: GradeFormProps) 
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-w-56 flex-col gap-2">
       <input
         type="number"
         min={0}
@@ -222,8 +252,9 @@ function GradeForm({ submission, maxMarks, onGraded, onError }: GradeFormProps) 
         onChange={(e) => setMarks(e.target.value)}
         placeholder={`0–${maxMarks}`}
         aria-label={`Marks for ${submission.studentName}`}
-        className={`${inputClass} w-28`}
+        className={`${inputClass} w-28 font-mono`}
       />
+
       <textarea
         value={feedback}
         onChange={(e) => setFeedback(e.target.value)}
@@ -231,11 +262,12 @@ function GradeForm({ submission, maxMarks, onGraded, onError }: GradeFormProps) 
         maxLength={FEEDBACK_MAX_LENGTH}
         placeholder="Feedback (optional)"
         aria-label={`Feedback for ${submission.studentName}`}
-        className={`${inputClass} w-full min-w-48`}
+        className={`${textareaClass} min-h-16`}
       />
-      <button type="button" onClick={handleSave} disabled={isSaving} className={primaryButtonClass}>
+
+      <Button icon="check" isBusy={isSaving} onClick={handleSave} className="self-start">
         {isSaving ? "Saving…" : "Save grade"}
-      </button>
+      </Button>
     </div>
   );
 }
