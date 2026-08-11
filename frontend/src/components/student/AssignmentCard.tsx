@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AttachmentPanel } from "@/components/attachments/AttachmentPanel";
 import { SubmissionForm } from "@/components/student/SubmissionForm";
 import { describeTimeRemaining, formatDateTime, isPastDeadline } from "@/lib/datetime";
 import { cardClass, mutedTextClass, subtleButtonClass } from "@/components/ui/styles";
@@ -47,6 +48,28 @@ export function AssignmentCard({ assignment, submission, onSaved }: AssignmentCa
               {assignment.description}
             </p>
           </div>
+
+          {/* Read-only: the brief belongs to the teacher. */}
+          {assignment.attachments.length > 0 && (
+            <AttachmentPanel
+              owner="assignment"
+              ownerId={assignment.id}
+              attachments={assignment.attachments}
+              label="Assignment files"
+            />
+          )}
+
+          {/* The student's own files. Editable until the deadline locks the submission,
+              matching the rule the server enforces on the text content. */}
+          {submission && (
+            <AttachmentPanel
+              owner="submission"
+              ownerId={submission.id}
+              attachments={submission.attachments}
+              canModify={!isLocked}
+              label="Your files"
+            />
+          )}
 
           {submission && (
             <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">

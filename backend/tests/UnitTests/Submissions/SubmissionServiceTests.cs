@@ -1,5 +1,6 @@
 using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
+using AssignmentSubmissionSystem.Application.Notifications;
 using AssignmentSubmissionSystem.Application.Submissions;
 using AssignmentSubmissionSystem.Application.Submissions.Dtos;
 using AssignmentSubmissionSystem.Domain.Entities;
@@ -13,11 +14,17 @@ public sealed class SubmissionServiceTests
 {
     private readonly Mock<ISubmissionRepository> _submissionRepository = new();
     private readonly Mock<IAssignmentRepository> _assignmentRepository = new();
+    private readonly Mock<IUserRepository> _userRepository = new();
+    private readonly Mock<INotificationService> _notificationService = new();
     private readonly SubmissionService _sut;
 
     public SubmissionServiceTests()
     {
-        _sut = new SubmissionService(_submissionRepository.Object, _assignmentRepository.Object);
+        _sut = new SubmissionService(
+            _submissionRepository.Object,
+            _assignmentRepository.Object,
+            _userRepository.Object,
+            _notificationService.Object);
     }
 
     private static Assignment BuildAssignment(AssignmentStatus status, DateTime deadline, Guid? teacherId = null, int maxMarks = 100)

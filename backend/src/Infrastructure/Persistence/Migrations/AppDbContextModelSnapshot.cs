@@ -69,6 +69,116 @@ namespace AssignmentSubmissionSystem.Infrastructure.Persistence.Migrations
                     b.ToTable("Assignments");
                 });
 
+            modelBuilder.Entity("AssignmentSubmissionSystem.Domain.Entities.Attachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("StorageProvider")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid?>("SubmissionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UploadedById")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentId");
+
+                    b.HasIndex("SubmissionId");
+
+                    b.HasIndex("UploadedById");
+
+                    b.ToTable("Attachments", t =>
+                        {
+                            t.HasCheckConstraint("CK_Attachments_ExactlyOneOwner", "(\"AssignmentId\" IS NOT NULL AND \"SubmissionId\" IS NULL)\n                  OR (\"AssignmentId\" IS NULL AND \"SubmissionId\" IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("AssignmentSubmissionSystem.Domain.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("SubmissionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentId");
+
+                    b.HasIndex("SubmissionId");
+
+                    b.HasIndex("UserId", "AssignmentId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Notifications_DeadlineReminder_Once")
+                        .HasFilter("\"Type\" = 'DeadlineApproaching'");
+
+                    b.HasIndex("UserId", "IsRead", "CreatedAt");
+
+                    b.ToTable("Notifications");
+                });
+
             modelBuilder.Entity("AssignmentSubmissionSystem.Domain.Entities.SchoolClass", b =>
                 {
                     b.Property<Guid>("Id")
@@ -256,6 +366,56 @@ namespace AssignmentSubmissionSystem.Infrastructure.Persistence.Migrations
                     b.Navigation("Teacher");
                 });
 
+            modelBuilder.Entity("AssignmentSubmissionSystem.Domain.Entities.Attachment", b =>
+                {
+                    b.HasOne("AssignmentSubmissionSystem.Domain.Entities.Assignment", "Assignment")
+                        .WithMany("Attachments")
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("AssignmentSubmissionSystem.Domain.Entities.Submission", "Submission")
+                        .WithMany("Attachments")
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("AssignmentSubmissionSystem.Domain.Entities.User", "UploadedBy")
+                        .WithMany()
+                        .HasForeignKey("UploadedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Assignment");
+
+                    b.Navigation("Submission");
+
+                    b.Navigation("UploadedBy");
+                });
+
+            modelBuilder.Entity("AssignmentSubmissionSystem.Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("AssignmentSubmissionSystem.Domain.Entities.Assignment", "Assignment")
+                        .WithMany()
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AssignmentSubmissionSystem.Domain.Entities.Submission", "Submission")
+                        .WithMany()
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("AssignmentSubmissionSystem.Domain.Entities.User", "User")
+                        .WithMany("Notifications")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Assignment");
+
+                    b.Navigation("Submission");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("AssignmentSubmissionSystem.Domain.Entities.StudentClass", b =>
                 {
                     b.HasOne("AssignmentSubmissionSystem.Domain.Entities.SchoolClass", "Class")
@@ -326,6 +486,8 @@ namespace AssignmentSubmissionSystem.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("AssignmentSubmissionSystem.Domain.Entities.Assignment", b =>
                 {
+                    b.Navigation("Attachments");
+
                     b.Navigation("Submissions");
                 });
 
@@ -343,9 +505,16 @@ namespace AssignmentSubmissionSystem.Infrastructure.Persistence.Migrations
                     b.Navigation("TeacherSubjects");
                 });
 
+            modelBuilder.Entity("AssignmentSubmissionSystem.Domain.Entities.Submission", b =>
+                {
+                    b.Navigation("Attachments");
+                });
+
             modelBuilder.Entity("AssignmentSubmissionSystem.Domain.Entities.User", b =>
                 {
                     b.Navigation("AssignmentsCreated");
+
+                    b.Navigation("Notifications");
 
                     b.Navigation("StudentClasses");
 

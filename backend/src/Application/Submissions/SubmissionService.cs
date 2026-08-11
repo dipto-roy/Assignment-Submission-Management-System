@@ -1,6 +1,8 @@
 using AssignmentSubmissionSystem.Application.Abstractions;
+using AssignmentSubmissionSystem.Application.Attachments;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
 using AssignmentSubmissionSystem.Application.Common.Paging;
+using AssignmentSubmissionSystem.Application.Notifications;
 using AssignmentSubmissionSystem.Application.Submissions.Dtos;
 using AssignmentSubmissionSystem.Domain.Entities;
 using AssignmentSubmissionSystem.Domain.Enums;
@@ -26,7 +28,9 @@ public interface ISubmissionService
 
 public sealed class SubmissionService(
     ISubmissionRepository submissionRepository,
-    IAssignmentRepository assignmentRepository) : ISubmissionService
+    IAssignmentRepository assignmentRepository,
+    IUserRepository userRepository,
+    INotificationService notificationService) : ISubmissionService
 {
     public async Task<PagedResult<SubmissionSummaryDto>> GetMineAsync(
         Guid studentId,
@@ -82,6 +86,15 @@ public sealed class SubmissionService(
         await submissionRepository.AddAsync(submission, cancellationToken);
 
         submission.Assignment = assignment;
+
+        // Tell the teacher who set the work. Looked up rather than taken from the token so the
+        // message carries the student's stored name, not a claim the client could shape.
+        var student = await userRepository.FindByIdAsync(studentId, cancellationToken);
+        await notificationService.NotifySubmissionReceivedAsync(
+            submission,
+            student?.Name ?? "A student",
+            cancellationToken);
+
         return ToDto(submission);
     }
 
@@ -153,6 +166,9 @@ public sealed class SubmissionService(
         submission.GradedAt = DateTime.UtcNow;
 
         await submissionRepository.UpdateAsync(submission, cancellationToken);
+
+        await notificationService.NotifySubmissionGradedAsync(submission, cancellationToken);
+
         return ToDetailDto(submission);
     }
 
@@ -206,7 +222,8 @@ public sealed class SubmissionService(
         submission.Feedback,
         submission.SubmittedAt,
         submission.UpdatedAt,
-        submission.GradedAt);
+        submission.GradedAt,
+        AttachmentMapper.ToDtos(submission.Attachments));
 
     private static SubmissionSummaryDto ToDto(Submission submission) => new(
         submission.Id,
@@ -220,5 +237,6 @@ public sealed class SubmissionService(
         submission.Feedback,
         submission.SubmittedAt,
         submission.UpdatedAt,
-        submission.GradedAt);
+        submission.GradedAt,
+        AttachmentMapper.ToDtos(submission.Attachments));
 }

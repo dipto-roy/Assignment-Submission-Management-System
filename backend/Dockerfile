@@ -28,6 +28,12 @@ WORKDIR /app
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=build /app/publish .
+
+# Upload target for the local storage provider, created in the image rather than at runtime.
+# Docker seeds a new named volume from the image's directory, ownership included; without this
+# the volume mounts root-owned and the non-root process cannot write to it.
+RUN mkdir -p /app/uploads
+
 RUN chown -R appuser:appgroup /app
 USER appuser
 

@@ -9,6 +9,7 @@ import {
 import { formatDateTime } from "@/lib/datetime";
 import { inputClass, mutedTextClass, primaryButtonClass } from "@/components/ui/styles";
 import type { SubmissionDetail, SubmissionStatus } from "@/types";
+import { AttachmentPanel } from "@/components/attachments/AttachmentPanel";
 
 const SUBMISSION_STATUSES: SubmissionStatus[] = ["Submitted", "Late", "Graded", "Returned"];
 
@@ -145,6 +146,17 @@ export function SubmissionsReview({ assignmentId, maxMarks }: SubmissionsReviewP
               <p className="whitespace-pre-wrap text-black/70 dark:text-white/70">
                 {submission.content}
               </p>
+              {/* Read-only: marking the work does not entitle a teacher to delete it. */}
+              {submission.attachments.length > 0 && (
+                <div className="mt-2">
+                  <AttachmentPanel
+                    owner="submission"
+                    ownerId={submission.id}
+                    attachments={submission.attachments}
+                    label="Submitted files"
+                  />
+                </div>
+              )}
             </li>
           ))}
         </ul>

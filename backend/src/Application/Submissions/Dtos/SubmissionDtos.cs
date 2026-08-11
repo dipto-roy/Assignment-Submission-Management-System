@@ -1,3 +1,4 @@
+using AssignmentSubmissionSystem.Application.Attachments.Dtos;
 using AssignmentSubmissionSystem.Domain.Enums;
 
 namespace AssignmentSubmissionSystem.Application.Submissions.Dtos;
@@ -14,7 +15,8 @@ public sealed record SubmissionSummaryDto(
     string? Feedback,
     DateTime SubmittedAt,
     DateTime? UpdatedAt,
-    DateTime? GradedAt);
+    DateTime? GradedAt,
+    IReadOnlyList<AttachmentDto> Attachments);
 
 /// <summary>
 /// Teacher/Admin review view — adds student identity, which students never see for each other (business rule §7.4).
@@ -34,7 +36,8 @@ public sealed record SubmissionDetailDto(
     string? Feedback,
     DateTime SubmittedAt,
     DateTime? UpdatedAt,
-    DateTime? GradedAt);
+    DateTime? GradedAt,
+    IReadOnlyList<AttachmentDto> Attachments);
 
 public sealed record CreateSubmissionDto(string Content);
 

@@ -16,6 +16,12 @@ public interface ISubmissionRepository
     /// <summary>Teacher/Admin review view — every submission against one assignment, with student details.</summary>
     Task<PagedResult<Submission>> FindByAssignmentAsync(Guid assignmentId, SubmissionQuery query, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Students who have already submitted against one assignment. Subtracted from the class
+    /// roster so a deadline reminder only reaches those who still owe work.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> FindStudentIdsWithSubmissionAsync(Guid assignmentId, CancellationToken cancellationToken);
+
     Task AddAsync(Submission submission, CancellationToken cancellationToken);
 
     Task UpdateAsync(Submission submission, CancellationToken cancellationToken);

@@ -23,6 +23,13 @@ public class AuthApiFactory : WebApplicationFactory<Program>
     private const string FallbackJwtKey =
         "local-dev-only-jwt-signing-key-not-for-production-use-32chars";
 
+    /// <summary>
+    /// Upload target for the suite. Unique per run so parallel or repeated runs cannot see
+    /// each other's files, and so nothing is left behind in the repository tree.
+    /// </summary>
+    private static readonly string LocalStorageRoot =
+        Path.Combine(Path.GetTempPath(), $"assignment-submission-tests-{Guid.NewGuid():N}");
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
@@ -42,7 +49,18 @@ public class AuthApiFactory : WebApplicationFactory<Program>
                 ["Jwt:Key"] = Coalesce(existing["Jwt:Key"], FallbackJwtKey),
                 ["Jwt:Issuer"] = Coalesce(existing["Jwt:Issuer"], "AssignmentSubmissionSystem"),
                 ["Jwt:Audience"] = Coalesce(existing["Jwt:Audience"], "AssignmentSubmissionSystem.Client"),
-                ["Jwt:ExpiryMinutes"] = Coalesce(existing["Jwt:ExpiryMinutes"], "60")
+                ["Jwt:ExpiryMinutes"] = Coalesce(existing["Jwt:ExpiryMinutes"], "60"),
+
+                // The reminder worker would otherwise scan on boot and insert notifications
+                // underneath tests that assert on exact counts, making them order-dependent.
+                // Its behaviour is covered directly in DeadlineReminderServiceTests instead.
+                ["Notifications:DeadlineReminder:Enabled"] = "false",
+
+                // Local storage in a per-run temp directory: the suite exercises the real
+                // upload path end to end without depending on Cloudinary credentials or
+                // touching a real account from CI.
+                ["Storage:Provider"] = "Local",
+                ["Storage:LocalRootPath"] = LocalStorageRoot
             });
         });
     }

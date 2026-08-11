@@ -2,6 +2,7 @@ using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Assignments;
 using AssignmentSubmissionSystem.Application.Assignments.Dtos;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
+using AssignmentSubmissionSystem.Application.Notifications;
 using AssignmentSubmissionSystem.Domain.Entities;
 using AssignmentSubmissionSystem.Domain.Enums;
 using Moq;
@@ -12,11 +13,12 @@ namespace AssignmentSubmissionSystem.UnitTests.Assignments;
 public sealed class AssignmentServiceTests
 {
     private readonly Mock<IAssignmentRepository> _assignmentRepository = new();
+    private readonly Mock<INotificationService> _notificationService = new();
     private readonly AssignmentService _sut;
 
     public AssignmentServiceTests()
     {
-        _sut = new AssignmentService(_assignmentRepository.Object);
+        _sut = new AssignmentService(_assignmentRepository.Object, _notificationService.Object);
     }
 
     private static Assignment BuildAssignment(Guid teacherId, Guid? id = null, AssignmentStatus status = AssignmentStatus.Draft)

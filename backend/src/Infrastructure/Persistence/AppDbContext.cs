@@ -16,6 +16,8 @@ public class AppDbContext : DbContext
     public DbSet<StudentClass> StudentClasses => Set<StudentClass>();
     public DbSet<Assignment> Assignments => Set<Assignment>();
     public DbSet<Submission> Submissions => Set<Submission>();
+    public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,6 +99,81 @@ public class AppDbContext : DbContext
                 .WithMany(u => u.Submissions)
                 .HasForeignKey(s => s.StudentId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Attachment>(entity =>
+        {
+            entity.Property(a => a.FileName).IsRequired().HasMaxLength(255);
+            entity.Property(a => a.ContentType).IsRequired().HasMaxLength(150);
+            entity.Property(a => a.StorageKey).IsRequired().HasMaxLength(500);
+            entity.Property(a => a.StorageProvider).IsRequired().HasMaxLength(30);
+
+            // An attachment hangs off exactly one owner. Without this the table would happily
+            // accept an orphan (both null) or a row claiming to belong to both.
+            entity.ToTable(t => t.HasCheckConstraint(
+                "CK_Attachments_ExactlyOneOwner",
+                @"(""AssignmentId"" IS NOT NULL AND ""SubmissionId"" IS NULL)
+                  OR (""AssignmentId"" IS NULL AND ""SubmissionId"" IS NOT NULL)"));
+
+            // Every read is "the files for this owner", so both owner columns are indexed.
+            entity.HasIndex(a => a.AssignmentId);
+            entity.HasIndex(a => a.SubmissionId);
+
+            // Cascade: deleting the owner removes its attachment rows. The stored bytes are
+            // deleted separately by the service, which is why deletes go through it.
+            entity.HasOne(a => a.Assignment)
+                .WithMany(x => x.Attachments)
+                .HasForeignKey(a => a.AssignmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(a => a.Submission)
+                .WithMany(x => x.Attachments)
+                .HasForeignKey(a => a.SubmissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict, matching the other user-owned relationships: an uploader is never
+            // removed out from under the file that records who uploaded it.
+            entity.HasOne(a => a.UploadedBy)
+                .WithMany()
+                .HasForeignKey(a => a.UploadedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.Property(n => n.Type).HasConversion<string>().HasMaxLength(30);
+            entity.Property(n => n.Title).IsRequired().HasMaxLength(200);
+            entity.Property(n => n.Message).IsRequired().HasMaxLength(1000);
+
+            // The bell queries "my notifications, newest first" and "my unread count" on every
+            // poll; this index serves both.
+            entity.HasIndex(n => new { n.UserId, n.IsRead, n.CreatedAt });
+
+            entity.HasOne(n => n.User)
+                .WithMany(u => u.Notifications)
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // SetNull, not Cascade: deleting an assignment should drop the deep link, not
+            // erase the user's record that they were once notified.
+            entity.HasOne(n => n.Assignment)
+                .WithMany()
+                .HasForeignKey(n => n.AssignmentId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(n => n.Submission)
+                .WithMany()
+                .HasForeignKey(n => n.SubmissionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // The deadline reminder worker re-scans on every tick and must not notify the same
+            // student about the same assignment twice. A filtered unique index makes the
+            // database the arbiter, so overlapping ticks or multiple replicas cannot duplicate.
+            // Only DeadlineApproaching is constrained: the other types are legitimately repeatable.
+            entity.HasIndex(n => new { n.UserId, n.AssignmentId })
+                .IsUnique()
+                .HasFilter(@"""Type"" = 'DeadlineApproaching'")
+                .HasDatabaseName("IX_Notifications_DeadlineReminder_Once");
         });
 
         modelBuilder.Entity<User>().Property(u => u.Role).HasConversion<string>().HasMaxLength(20);

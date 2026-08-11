@@ -5,6 +5,7 @@ import { UsersPanel } from "@/components/admin/UsersPanel";
 import { ClassesPanel } from "@/components/admin/ClassesPanel";
 import { SubjectsPanel } from "@/components/admin/SubjectsPanel";
 import { EnrollmentPanel } from "@/components/admin/EnrollmentPanel";
+import { AssignmentsOversightPanel } from "@/components/admin/AssignmentsOversightPanel";
 import { mutedTextClass } from "@/components/ui/styles";
 
 export default function AdminDashboardPage() {
@@ -27,6 +28,7 @@ export default function AdminDashboardPage() {
         <ClassesPanel />
         <SubjectsPanel />
         <EnrollmentPanel />
+        <AssignmentsOversightPanel />
       </div>
     </main>
   );

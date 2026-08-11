@@ -123,8 +123,10 @@ App on <http://localhost:3000>. The API's CORS policy allows `http://localhost:3
 
 ## Database setup
 
-**Nothing needs to be created by hand.** `DbSeeder.MigrateAsync` runs EF Core migrations on
-every start-up, and demo data is seeded in Development.
+**Nothing needs to be created by hand.** `DbSeeder.MigrateAndSeedAsync` runs EF Core
+migrations on every start-up, and demo data is seeded in Development. Both steps are held
+behind a PostgreSQL advisory lock, so concurrent start-ups (several API replicas, or the
+integration suite booting more than one test host) cannot race on a fresh database.
 
 | Artifact | Path | Purpose |
 | --- | --- | --- |
@@ -168,6 +170,56 @@ while submissions exist; a student only ever sees Published assignments for thei
 
 ---
 
+## File storage
+
+Uploads go to one of two providers, chosen by `Storage__Provider`:
+
+| Value | Behaviour |
+| --- | --- |
+| `Auto` (default) | Cloudinary when all three credentials are set, local disk otherwise. |
+| `Cloudinary` | Cloudinary, failing at startup if a credential is missing. |
+| `Local` | A directory on disk (`Storage__LocalRootPath`, mounted as the `uploads` volume). |
+
+The API logs which provider it resolved to on the first line after startup, so `Auto` silently
+falling back to local disk is visible rather than something you discover when the container is
+recreated and the files are gone.
+
+`Auto` exists so a fresh `docker compose up` works for an evaluator with no Cloudinary account.
+Local storage is not a production choice: the files live inside a container volume with no
+redundancy.
+
+### Using Cloudinary
+
+Fill these in `backend/.env` (they are already listed in `.env.example`):
+
+```
+Storage__Cloudinary__CloudName=your-cloud-name
+Storage__Cloudinary__ApiKey=your-api-key
+Storage__Cloudinary__ApiSecret=your-api-secret
+```
+
+Then `docker compose up -d --build api`. `Storage__Provider` can stay on `Auto`.
+
+Files are uploaded as `raw` assets with delivery type **`authenticated`**, not the default
+`upload`. This matters: an `upload` asset is served to anyone holding its URL, which would put
+every submission outside this application's authorization rules — a student's work would be
+readable by whoever the link reached. Authenticated assets are not publicly addressable, and
+downloads are proxied by `GET /attachments/{id}/download`, which applies the same role checks
+that govern the parent assignment or submission before streaming a byte.
+
+### Limits
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `Storage__MaxFileSizeBytes` | 10485760 (10 MB) | Rejected before the bytes reach the provider. |
+| `Storage__MaxFilesPerOwner` | 5 | Per assignment or per submission. |
+
+Accepted types are an allow-list (documents, spreadsheets, slides, images, `.zip`) checked on
+both extension and content type. Client-supplied file names are display metadata only — the
+storage key is generated server-side, so a name like `../../etc/passwd` has nowhere to go.
+
+---
+
 ## Running the tests
 
 ### Backend
@@ -200,7 +252,7 @@ cd backend
 
 ```bash
 cd frontend
-npm test              # 62 tests
+npm test              # 67 tests
 npm run test:coverage
 ```
 
@@ -219,7 +271,9 @@ Both suites run on every push via GitHub Actions (`.github/workflows/ci.yml`).
 - Create, update and delete users, with a role and (for students) an initial class.
 - Manage classes and subjects; assign teachers to subjects.
 - Manage class rosters — enroll, move and unenroll students.
-- Read access to every assignment and submission.
+- Oversight of every assignment across all classes — including teachers' drafts — filtered
+  by class, status and title, with each assignment's submissions, marks and feedback. Read-only:
+  editing from here would bypass the teacher-ownership rules the API enforces on writes.
 
 ### Teacher
 
@@ -233,10 +287,19 @@ Both suites run on every push via GitHub Actions (`.github/workflows/ci.yml`).
 
 - See Published assignments for their own class, with deadline and remaining time.
 - Submit an answer, and update it until the deadline passes.
+- Attach files to a submission, and download the teacher's brief.
 - Track submission status, marks and teacher feedback.
 
 ### Cross-cutting
 
+- **In-app notifications** with an unread badge in the nav, raised on four events: an
+  assignment is published (to every student in the class), work is submitted (to the owning
+  teacher), work is graded (to the student), and a deadline is approaching (to students who
+  have not submitted). The bell polls the unread count every 30 seconds.
+- **File uploads** on both assignments (the teacher's brief) and submissions (the student's
+  work), with an extension and content-type allow-list, a 10 MB per-file ceiling and a
+  five-file cap per record. Downloads are proxied through the API so the same role rules that
+  govern the parent record govern its files.
 - JWT login with BCrypt password hashing; role claims drive both routing and API authorization.
 - Consistent `{ success, data, error, meta }` response envelope, including for errors.
 - FluentValidation on every write endpoint, mirrored by client-side validation in the UI.
@@ -261,8 +324,8 @@ GET    /classes          POST /classes    PUT /classes/{id}   DELETE /classes/{i
 GET    /classes/{id}/students   POST /classes/{id}/students
 DELETE /classes/{id}/students/{studentId}                                     [Admin]
 
-GET    /subjects         POST /subjects   PUT /subjects/{id}
-POST   /subjects/{id}/assign-teacher                                          [Admin]
+GET    /subjects         POST /subjects   PUT /subjects/{id}  DELETE /subjects/{id}
+GET    /subjects/{id}    POST /subjects/{id}/assign-teacher                   [Admin]
 
 GET    /assignments      ?status= &subjectId= &classId= &search= &page= &pageSize=
 GET    /assignments/{id}                                              [role-filtered]
@@ -274,6 +337,15 @@ POST   /assignments/{id}/submissions                                          [S
 PUT    /submissions/{id}                              [Student-owner, before deadline]
 GET    /submissions/mine                  ?status= &page= &pageSize=          [Student]
 PATCH  /submissions/{id}/grade            PATCH /submissions/{id}/status      [Teacher-owner]
+
+POST   /assignments/{id}/attachments      multipart, part name "file"   [Teacher-owner, Admin]
+POST   /submissions/{id}/attachments      multipart, part name "file"   [Student-owner]
+GET    /attachments/{id}/download                     [owner, owning teacher, Admin]
+DELETE /attachments/{id}                              [uploader of the parent record, Admin]
+
+GET    /notifications                     ?unreadOnly= &page= &pageSize=  [own only]
+GET    /notifications/unread-count                                        [own only]
+PATCH  /notifications/{id}/read           POST /notifications/read-all    [own only]
 
 GET    /health                                                        [anonymous]
 ```
@@ -357,8 +429,9 @@ see [Known limitations](#known-limitations) for the trade-off.
 
 Documented per the brief's instruction to make and record reasonable assumptions:
 
-1. **A submission is text content, not a file upload.** File storage would add infrastructure
-   without exercising any additional business rule. The content field is free text.
+1. **A submission is text content plus optional file attachments.** The text field is the
+   primary answer; files supplement it. Attaching a file is treated as a change to the
+   submission, so it is barred after the deadline on the same terms as editing the text.
 2. **A student belongs to exactly one class**, and a subject belongs to exactly one class.
    Enrolling a student in a new class therefore *moves* them out of the previous one.
 3. **A teacher can teach several subjects**, across different classes.
@@ -375,11 +448,20 @@ Documented per the brief's instruction to make and record reasonable assumptions
 
 ## Known limitations
 
-- **No notifications.** Listed as optional in the brief and left out to keep the scope tight.
+- **Notifications are in-app and polled, not pushed.** The bell re-checks every 30 seconds,
+  so a new notification can take up to that long to appear. Live delivery would need
+  WebSockets (SignalR); there is no email or push channel.
 - **No refresh tokens.** Access tokens last 60 minutes; when one expires the user signs in
   again. `localStorage` storage means a successful XSS could read the token — an HTTP-only
   cookie plus CSRF protection would be the production choice.
-- **No file uploads** on submissions (see assumption 1).
+- **Uploads are proxied through the API**, so file bytes traverse the application on every
+  download. This is deliberate — it is what keeps authorization in this system's hands rather
+  than delegating it to an unguessable storage URL — but it does put file traffic on the API's
+  own throughput budget.
+- **The deadline reminder worker runs in-process** on a 30-minute timer. Duplicate
+  notifications are prevented by a unique index rather than by coordination, so extra replicas
+  are safe, but there is no retry or dead-letter handling if a scan fails: it simply tries
+  again on the next tick.
 - **List UIs request the maximum page size (100) rather than paging.** The API is paginated
   and filterable, but the dashboards render whole lists; a class larger than 100 students
   would need pager controls in the UI.
@@ -387,5 +469,5 @@ Documented per the brief's instruction to make and record reasonable assumptions
   multi-instance deployment would need a shared store.
 - **No email delivery**, password reset, or account self-service.
 - **`schema.sql` creates the schema but seeds no data** (see [Database setup](#database-setup)).
-- **Frontend coverage is 39% overall.** The business-rule modules are well above the 80%
+- **Frontend coverage is 44% overall.** The business-rule modules are well above the 80%
   bar; the remainder is presentational panels covered indirectly.

@@ -270,13 +270,23 @@ filters. 5 new frontend tests (62 total).
 2. ~~Student UI (§10.2)~~ — done
 3. ~~Root README + demo credentials + environment fix (§10.5)~~ — done
 4. ~~Frontend tests (§10.3)~~ and ~~backend coverage report (§10.4)~~ — done
-5. Optional extras: ~~frontend Docker service~~, ~~CI~~ — done; notifications remain out of scope
+5. Optional extras: ~~frontend Docker service~~, ~~CI~~, ~~notifications~~, ~~file uploads~~ — all done
+
+### 10.7 Notifications & file uploads — **DONE** (11 Aug 2026)
+
+- [x] **Attachments** — `Attachment` entity with nullable `AssignmentId`/`SubmissionId` and a check constraint that exactly one is set, so the database rejects orphaned and doubly-owned rows. Allow-list on extension *and* content type, 10 MB per-file ceiling, 5 files per record. Storage keys are generated server-side; the client's file name is display metadata only.
+- [x] **Storage providers** — `IFileStorage` with a Cloudinary implementation (`raw` assets, delivery type `authenticated`) and a local-disk fallback. `Storage__Provider=Auto` picks Cloudinary when credentials exist and local otherwise, and the resolved choice is logged at startup rather than left implicit.
+- [x] **Authorized downloads** — bytes are proxied by `GET /attachments/{id}/download` instead of redirecting to a provider URL, so a file is never more reachable than the record it belongs to. `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff`.
+- [x] **Notifications** — per-recipient rows, `GET /notifications`, `/unread-count`, `PATCH /{id}/read`, `POST /read-all`. Every path is scoped to the caller's own id; another user's notification reports 404, not 403.
+- [x] **Four triggers** — assignment published (fires only on the Draft → Published edge), submission received, submission graded, and a `DeadlineReminderService` background worker. The worker is stateless: re-notification is prevented by a filtered unique index, so extra replicas cannot double-send.
+- [x] **UI** — notification bell with unread badge and dropdown in `AppNav`; `AttachmentPanel` on the student assignment card, the teacher assignment list, and the teacher review screen.
+- [x] **Tests** — 61 new backend tests (175 total) and 23 new frontend tests (90 total), all passing.
 
 ---
 
 ## 11. Open Assumptions (to confirm/document in README)
 
-- Submission = text content (not file upload) unless file upload explicitly wanted — keep scope lean, note as assumption; file upload listed as stretch goal.
+- Submission = text content **plus optional file attachments** (implemented; see §10.7). Attaching a file counts as changing the submission, so it is barred after the deadline exactly as editing the text is.
 - One student belongs to exactly one class; one subject belongs to exactly one class; one teacher can teach multiple subjects.
 - "Update submission before deadline" — after deadline, submission locked (status auto → Late if submitted late, per teacher-configurable rule or fixed).
 - Assignment delete blocked if submissions already exist (data integrity over destructive cascade).

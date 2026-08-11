@@ -85,6 +85,8 @@ export interface Assignment {
   teacherName: string;
   createdAt: string;
   updatedAt?: string | null;
+  /** Brief, spec or rubric files the teacher attached. */
+  attachments: Attachment[];
 }
 
 export interface CreateAssignmentInput {
@@ -110,6 +112,8 @@ export interface Submission {
   submittedAt: string;
   updatedAt?: string | null;
   gradedAt?: string | null;
+  /** Files the student uploaded alongside the text answer. */
+  attachments: Attachment[];
 }
 
 /** Teacher/Admin review view — adds student identity and the assignment's mark ceiling. */
@@ -122,6 +126,38 @@ export interface SubmissionDetail extends Submission {
 export interface GradeSubmissionInput {
   marks: number;
   feedback?: string | null;
+}
+
+/** A file attached to an assignment (teacher's brief) or a submission (student's work). */
+export interface Attachment {
+  id: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedById: string;
+  uploadedAt: string;
+}
+
+export type NotificationType =
+  | "AssignmentPublished"
+  | "SubmissionReceived"
+  | "SubmissionGraded"
+  | "DeadlineApproaching";
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  assignmentId?: string | null;
+  submissionId?: string | null;
+  isRead: boolean;
+  createdAt: string;
+  readAt?: string | null;
+}
+
+export interface UnreadCount {
+  unread: number;
 }
 
 // Consistent API envelope (see rules/patterns.md — API Response Format).
