@@ -73,6 +73,27 @@ public sealed class AssignmentRepository(AppDbContext db) : IAssignmentRepositor
     public Task<bool> IsStudentEnrolledInClassAsync(Guid studentId, Guid classId, CancellationToken cancellationToken) =>
         db.StudentClasses.AnyAsync(sc => sc.StudentId == studentId && sc.ClassId == classId, cancellationToken);
 
+    public async Task<IReadOnlyList<Guid>> FindStudentIdsInClassAsync(Guid classId, CancellationToken cancellationToken) =>
+        await db.StudentClasses.AsNoTracking()
+            .Where(sc => sc.ClassId == classId)
+            .Select(sc => sc.StudentId)
+            .ToListAsync(cancellationToken);
+
+    /// <summary>
+    /// Subject and class are included because the reminder worker needs the class to resolve
+    /// the roster, and pulling them per assignment afterwards would be an N+1.
+    /// </summary>
+    public async Task<IReadOnlyList<Assignment>> FindPublishedDueBetweenAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken) =>
+        await db.Assignments.AsNoTracking()
+            .Include(a => a.Subject)
+            .Where(a => a.Status == AssignmentStatus.Published
+                && a.Deadline > fromUtc
+                && a.Deadline <= toUtc)
+            .ToListAsync(cancellationToken);
+
     public async Task AddAsync(Assignment assignment, CancellationToken cancellationToken)
     {
         db.Assignments.Add(assignment);

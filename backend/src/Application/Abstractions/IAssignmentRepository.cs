@@ -21,6 +21,14 @@ public interface IAssignmentRepository
 
     Task<bool> IsStudentEnrolledInClassAsync(Guid studentId, Guid classId, CancellationToken cancellationToken);
 
+    /// <summary>Every student enrolled in a class — the audience for a newly published assignment.</summary>
+    Task<IReadOnlyList<Guid>> FindStudentIdsInClassAsync(Guid classId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Published assignments whose deadline falls in a window, for the deadline reminder worker.
+    /// </summary>
+    Task<IReadOnlyList<Assignment>> FindPublishedDueBetweenAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken);
+
     Task AddAsync(Assignment assignment, CancellationToken cancellationToken);
 
     Task UpdateAsync(Assignment assignment, CancellationToken cancellationToken);

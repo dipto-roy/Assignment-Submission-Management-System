@@ -2,14 +2,17 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using AssignmentSubmissionSystem.Api.BackgroundServices;
 using AssignmentSubmissionSystem.Api.Configuration;
 using AssignmentSubmissionSystem.Api.Middleware;
 using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Assignments;
+using AssignmentSubmissionSystem.Application.Attachments;
 using AssignmentSubmissionSystem.Application.Auth;
 using AssignmentSubmissionSystem.Application.Classes;
 using AssignmentSubmissionSystem.Application.Common;
 using AssignmentSubmissionSystem.Application.Common.Constants;
+using AssignmentSubmissionSystem.Application.Notifications;
 using AssignmentSubmissionSystem.Application.Options;
 using AssignmentSubmissionSystem.Application.Subjects;
 using AssignmentSubmissionSystem.Application.Submissions;
@@ -17,8 +20,10 @@ using AssignmentSubmissionSystem.Application.Users;
 using AssignmentSubmissionSystem.Infrastructure.Persistence;
 using AssignmentSubmissionSystem.Infrastructure.Persistence.Repositories;
 using AssignmentSubmissionSystem.Infrastructure.Security;
+using AssignmentSubmissionSystem.Infrastructure.Storage;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -117,6 +122,52 @@ builder.Services.AddScoped<IAssignmentService, AssignmentService>();
 // ---- Student domain (submissions) ----
 builder.Services.AddScoped<ISubmissionRepository, SubmissionRepository>();
 builder.Services.AddScoped<ISubmissionService, SubmissionService>();
+
+// ---- Notifications ----
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
+builder.Services.AddOptions<DeadlineReminderOptions>()
+    .Bind(builder.Configuration.GetSection(DeadlineReminderOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddHostedService<DeadlineReminderService>();
+
+// ---- File uploads ----
+builder.Services.AddOptions<StorageOptions>()
+    .Bind(builder.Configuration.GetSection(StorageOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddScoped<IAttachmentRepository, AttachmentRepository>();
+builder.Services.AddScoped<IAttachmentService, AttachmentService>();
+
+// The provider is resolved once, here, so the choice is visible in the startup log rather than
+// being discovered when the first upload lands somewhere unexpected. `Get<T>()` is used because
+// the decision is needed during registration, before the options system is available.
+var storageOptions = builder.Configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()
+    ?? new StorageOptions();
+var resolvedStorageProvider = storageOptions.ResolveProvider();
+
+if (resolvedStorageProvider == StorageOptions.ProviderCloudinary)
+{
+    // Named client so the Cloudinary download proxy gets pooled connections instead of a new
+    // socket per request.
+    builder.Services.AddHttpClient(nameof(CloudinaryFileStorage));
+    builder.Services.AddScoped<IFileStorage, CloudinaryFileStorage>();
+}
+else
+{
+    builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
+}
+
+// Multipart uploads are bounded at the same ceiling the attachment rules enforce, so an
+// oversized body is rejected by the server before it is buffered rather than after.
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = storageOptions.MaxFileSizeBytes;
+});
 
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 
@@ -231,6 +282,14 @@ using (var scope = app.Services.CreateScope())
 
     await DbSeeder.MigrateAndSeedAsync(db, passwordHasher, app.Environment.IsDevelopment());
 }
+
+// Stated explicitly at startup: "Auto" resolving to Local means uploads land inside the
+// container, and an operator who expected Cloudinary needs to see that before files are lost
+// on the next recreate rather than after.
+app.Logger.LogInformation(
+    "File storage provider: {StorageProvider} (configured as {ConfiguredProvider}).",
+    resolvedStorageProvider,
+    storageOptions.Provider);
 
 // ---- Pipeline ----
 if (app.Environment.IsDevelopment())

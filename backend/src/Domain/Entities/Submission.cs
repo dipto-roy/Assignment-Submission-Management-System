@@ -21,4 +21,7 @@ public class Submission
     public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
     public DateTime? GradedAt { get; set; }
+
+    /// <summary>Files the student uploaded alongside the text content.</summary>
+    public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
 }

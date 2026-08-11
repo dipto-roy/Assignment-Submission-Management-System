@@ -2,6 +2,7 @@ using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Assignments.Dtos;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
 using AssignmentSubmissionSystem.Application.Common.Paging;
+using AssignmentSubmissionSystem.Application.Notifications;
 using AssignmentSubmissionSystem.Domain.Entities;
 using AssignmentSubmissionSystem.Domain.Enums;
 
@@ -23,7 +24,9 @@ public interface IAssignmentService
     Task<AssignmentSummaryDto> SetPublishStateAsync(Guid id, Guid teacherId, SetPublishStateDto dto, CancellationToken cancellationToken);
 }
 
-public sealed class AssignmentService(IAssignmentRepository assignmentRepository) : IAssignmentService
+public sealed class AssignmentService(
+    IAssignmentRepository assignmentRepository,
+    INotificationService notificationService) : IAssignmentService
 {
     public async Task<PagedResult<AssignmentSummaryDto>> GetAllAsync(
         Guid userId,
@@ -107,10 +110,24 @@ public sealed class AssignmentService(IAssignmentRepository assignmentRepository
     {
         var assignment = await FindOwnedAsync(id, teacherId, cancellationToken);
 
+        // Captured before the mutation so the notification below fires on the Draft → Published
+        // transition only. Re-publishing something already published would otherwise spam the
+        // whole class every time the teacher touched the toggle.
+        var wasPublished = assignment.Status == AssignmentStatus.Published;
+
         assignment.Status = dto.Publish ? AssignmentStatus.Published : AssignmentStatus.Draft;
         assignment.UpdatedAt = DateTime.UtcNow;
 
         await assignmentRepository.UpdateAsync(assignment, cancellationToken);
+
+        if (dto.Publish && !wasPublished)
+        {
+            var studentIds = await assignmentRepository.FindStudentIdsInClassAsync(
+                assignment.Subject.ClassId, cancellationToken);
+
+            await notificationService.NotifyAssignmentPublishedAsync(assignment, studentIds, cancellationToken);
+        }
+
         return ToDto(assignment);
     }
 

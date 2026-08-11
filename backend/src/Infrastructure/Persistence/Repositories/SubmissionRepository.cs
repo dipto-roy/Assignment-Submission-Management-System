@@ -35,6 +35,12 @@ public sealed class SubmissionRepository(AppDbContext db) : ISubmissionRepositor
     private static IQueryable<Submission> WithStatusFilter(IQueryable<Submission> scoped, SubmissionQuery query) =>
         query.Status is { } status ? scoped.Where(s => s.Status == status) : scoped;
 
+    public async Task<IReadOnlyList<Guid>> FindStudentIdsWithSubmissionAsync(Guid assignmentId, CancellationToken cancellationToken) =>
+        await db.Submissions.AsNoTracking()
+            .Where(s => s.AssignmentId == assignmentId)
+            .Select(s => s.StudentId)
+            .ToListAsync(cancellationToken);
+
     public async Task AddAsync(Submission submission, CancellationToken cancellationToken)
     {
         db.Submissions.Add(submission);

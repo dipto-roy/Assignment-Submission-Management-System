@@ -21,4 +21,7 @@ public class Assignment
     public DateTime? UpdatedAt { get; set; }
 
     public ICollection<Submission> Submissions { get; set; } = new List<Submission>();
+
+    /// <summary>Brief, spec or rubric files the teacher attached to this assignment.</summary>
+    public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
 }
