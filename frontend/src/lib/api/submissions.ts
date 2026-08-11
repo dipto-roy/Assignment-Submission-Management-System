@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, apiFetchPaged } from "@/lib/api/client";
 import { FULL_PAGE, toQueryString, type PageParams } from "@/lib/api/query";
 import type {
   GradeSubmissionInput,
@@ -18,6 +18,15 @@ export const getAssignmentSubmissions = (
 ) =>
   apiFetch<SubmissionDetail[]>(
     `/assignments/${assignmentId}/submissions${toQueryString({ ...FULL_PAGE, ...params })}`,
+  );
+
+/** Same endpoint as `getAssignmentSubmissions`, keeping the page totals for the controls. */
+export const getAssignmentSubmissionsPage = (
+  assignmentId: string,
+  params: SubmissionListParams,
+) =>
+  apiFetchPaged<SubmissionDetail>(
+    `/assignments/${assignmentId}/submissions${toQueryString({ ...params })}`,
   );
 
 /** Student's own submissions only (business rule §7.4). */

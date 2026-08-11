@@ -1,6 +1,7 @@
 using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Classes.Dtos;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
+using AssignmentSubmissionSystem.Application.Common.Paging;
 using AssignmentSubmissionSystem.Domain.Entities;
 using AssignmentSubmissionSystem.Domain.Enums;
 
@@ -8,7 +9,7 @@ namespace AssignmentSubmissionSystem.Application.Classes;
 
 public interface IClassService
 {
-    Task<IReadOnlyList<ClassSummaryDto>> GetAllAsync(CancellationToken cancellationToken);
+    Task<PagedResult<ClassSummaryDto>> GetAllAsync(PageQuery page, CancellationToken cancellationToken);
 
     Task<ClassSummaryDto> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
@@ -28,10 +29,10 @@ public interface IClassService
 
 public sealed class ClassService(IClassRepository classRepository, IUserRepository userRepository) : IClassService
 {
-    public async Task<IReadOnlyList<ClassSummaryDto>> GetAllAsync(CancellationToken cancellationToken)
+    public async Task<PagedResult<ClassSummaryDto>> GetAllAsync(PageQuery page, CancellationToken cancellationToken)
     {
-        var classes = await classRepository.FindAllAsync(cancellationToken);
-        return classes.Select(ToDto).ToList();
+        var classes = await classRepository.FindAllAsync(page, cancellationToken);
+        return classes.Map(ToDto);
     }
 
     public async Task<ClassSummaryDto> GetByIdAsync(Guid id, CancellationToken cancellationToken)

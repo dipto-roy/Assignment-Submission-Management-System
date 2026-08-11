@@ -3,14 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SubmissionsReview } from "@/components/teacher/SubmissionsReview";
 import {
-  getAssignmentSubmissions,
+  getAssignmentSubmissionsPage,
   gradeSubmission,
   setSubmissionStatus,
 } from "@/lib/api/submissions";
+import { pagedOf } from "@/lib/testing/paged";
 import type { SubmissionDetail } from "@/types";
 
 vi.mock("@/lib/api/submissions", () => ({
-  getAssignmentSubmissions: vi.fn(),
+  getAssignmentSubmissionsPage: vi.fn(),
   gradeSubmission: vi.fn(),
   setSubmissionStatus: vi.fn(),
 }));
@@ -44,7 +45,7 @@ const renderReview = async () => {
 
 describe("SubmissionsReview", () => {
   beforeEach(() => {
-    vi.mocked(getAssignmentSubmissions).mockReset().mockResolvedValue([submission]);
+    vi.mocked(getAssignmentSubmissionsPage).mockReset().mockResolvedValue(pagedOf([submission]));
     vi.mocked(gradeSubmission).mockReset();
     vi.mocked(setSubmissionStatus).mockReset();
   });
@@ -123,7 +124,7 @@ describe("SubmissionsReview", () => {
   });
 
   it("shows an empty state when nobody has submitted", async () => {
-    vi.mocked(getAssignmentSubmissions).mockResolvedValue([]);
+    vi.mocked(getAssignmentSubmissionsPage).mockResolvedValue(pagedOf([]));
 
     render(<SubmissionsReview assignmentId="a-1" maxMarks={MAX_MARKS} />);
 

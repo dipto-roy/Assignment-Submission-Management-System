@@ -1,4 +1,5 @@
 using AssignmentSubmissionSystem.Application.Abstractions;
+using AssignmentSubmissionSystem.Application.Common.Paging;
 using AssignmentSubmissionSystem.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,8 +10,12 @@ public sealed class ClassRepository(AppDbContext db) : IClassRepository
     public Task<SchoolClass?> FindByIdAsync(Guid id, CancellationToken cancellationToken) =>
         db.Classes.SingleOrDefaultAsync(c => c.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<SchoolClass>> FindAllAsync(CancellationToken cancellationToken) =>
-        await db.Classes.AsNoTracking().OrderBy(c => c.Name).ThenBy(c => c.Section).ToListAsync(cancellationToken);
+    public Task<PagedResult<SchoolClass>> FindAllAsync(PageQuery page, CancellationToken cancellationToken) =>
+        db.Classes
+            .AsNoTracking()
+            .OrderBy(c => c.Name)
+            .ThenBy(c => c.Section)
+            .ToPagedResultAsync(page, cancellationToken);
 
     public async Task<IReadOnlyList<User>> FindStudentsAsync(Guid classId, CancellationToken cancellationToken) =>
         await db.StudentClasses

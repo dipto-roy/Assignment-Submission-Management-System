@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { createUser, deleteUser, getUsers } from "@/lib/api/admin";
+import { useState, type FormEvent } from "react";
+import { createUser, deleteUser, getUsersPage } from "@/lib/api/admin";
 import { useClasses } from "@/lib/hooks/useClasses";
+import { usePagedList } from "@/lib/hooks/usePagedList";
+import { Pagination } from "@/components/ui/Pagination";
 import type { UserRole, UserSummary } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -26,24 +28,31 @@ const ROLE_BADGE: Record<UserRole, { tone: "danger" | "primary" | "info"; icon: 
 
 export function UsersPanel() {
   const { classes } = useClasses();
-  const [users, setUsers] = useState<UserSummary[]>([]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("Teacher");
   const [classId, setClassId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const reload = () => getUsers().then(setUsers).catch((e) => setError(e.message));
+  const {
+    items: users,
+    meta,
+    isLoading,
+    isRefreshing,
+    error: loadError,
+    setPage,
+    setPageSize,
+    reload,
+  } = usePagedList<UserSummary>((params) => getUsersPage(params), {
+    errorMessage: "Failed to load users.",
+  });
 
-  useEffect(() => {
-    reload().finally(() => setIsLoading(false));
-  }, []);
+  const error = formError ?? loadError;
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null);
+    setFormError(null);
     try {
       await createUser({
         name,
@@ -56,19 +65,19 @@ export function UsersPanel() {
       setEmail("");
       setPassword("");
       setClassId("");
-      await reload();
+      reload();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create user.");
+      setFormError(e instanceof Error ? e.message : "Failed to create user.");
     }
   };
 
   const handleDelete = async (id: string) => {
-    setError(null);
+    setFormError(null);
     try {
       await deleteUser(id);
-      await reload();
+      reload();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to delete user.");
+      setFormError(e instanceof Error ? e.message : "Failed to delete user.");
     }
   };
 
@@ -78,7 +87,7 @@ export function UsersPanel() {
         icon="users"
         title="Users"
         description="Create accounts and remove people who have left."
-        meta={users.length > 0 ? <Badge tone="primary">{users.length}</Badge> : undefined}
+        meta={meta.total > 0 ? <Badge tone="primary">{meta.total}</Badge> : undefined}
       />
 
       <form onSubmit={handleCreate} className="mb-5 flex flex-wrap items-end gap-2">
@@ -156,6 +165,7 @@ export function UsersPanel() {
           description="Add the first teacher or student with the form above."
         />
       ) : (
+        <>
         <ul className={dividedListClass}>
           {users.map((u) => {
             const badge = ROLE_BADGE[u.role];
@@ -190,6 +200,15 @@ export function UsersPanel() {
             );
           })}
         </ul>
+
+        <Pagination
+          meta={meta}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          label="users"
+          isBusy={isRefreshing}
+        />
+        </>
       )}
     </section>
   );

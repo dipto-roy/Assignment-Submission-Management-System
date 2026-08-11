@@ -1,5 +1,6 @@
 using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
+using AssignmentSubmissionSystem.Application.Common.Paging;
 using AssignmentSubmissionSystem.Application.Subjects.Dtos;
 using AssignmentSubmissionSystem.Domain.Entities;
 using AssignmentSubmissionSystem.Domain.Enums;
@@ -8,7 +9,7 @@ namespace AssignmentSubmissionSystem.Application.Subjects;
 
 public interface ISubjectService
 {
-    Task<IReadOnlyList<SubjectSummaryDto>> GetAllAsync(CancellationToken cancellationToken);
+    Task<PagedResult<SubjectSummaryDto>> GetAllAsync(PageQuery page, CancellationToken cancellationToken);
 
     Task<SubjectSummaryDto> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
@@ -26,10 +27,10 @@ public sealed class SubjectService(
     IClassRepository classRepository,
     IUserRepository userRepository) : ISubjectService
 {
-    public async Task<IReadOnlyList<SubjectSummaryDto>> GetAllAsync(CancellationToken cancellationToken)
+    public async Task<PagedResult<SubjectSummaryDto>> GetAllAsync(PageQuery page, CancellationToken cancellationToken)
     {
-        var subjects = await subjectRepository.FindAllAsync(cancellationToken);
-        return subjects.Select(ToDto).ToList();
+        var subjects = await subjectRepository.FindAllAsync(page, cancellationToken);
+        return subjects.Map(ToDto);
     }
 
     public async Task<SubjectSummaryDto> GetByIdAsync(Guid id, CancellationToken cancellationToken)

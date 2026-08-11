@@ -2,6 +2,7 @@ using AssignmentSubmissionSystem.Application.Classes;
 using AssignmentSubmissionSystem.Application.Classes.Dtos;
 using AssignmentSubmissionSystem.Application.Common;
 using AssignmentSubmissionSystem.Application.Common.Constants;
+using AssignmentSubmissionSystem.Application.Common.Paging;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,12 +17,18 @@ public sealed class ClassesController(
     IValidator<CreateClassDto> createValidator,
     IValidator<UpdateClassDto> updateValidator) : ControllerBase
 {
-    // Open to any authenticated role — Admin manages classes, Teacher/Student browse their own.
+    /// <summary>
+    /// Paginated: `?page=1&amp;pageSize=20`. Open to any authenticated role — Admin manages
+    /// classes, Teacher/Student browse their own. Callers filling a class picker should ask
+    /// for a large page rather than assume the default returns everything.
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<ClassSummaryDto>>>> GetAll(CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<ClassSummaryDto>>>> GetAll(
+        [FromQuery] PageQuery query,
+        CancellationToken ct)
     {
-        var classes = await classService.GetAllAsync(ct);
-        return Ok(ApiResponse<IReadOnlyList<ClassSummaryDto>>.Ok(classes));
+        var page = await classService.GetAllAsync(query, ct);
+        return Ok(ApiResponse<IReadOnlyList<ClassSummaryDto>>.Ok(page.Items, page.ToMeta()));
     }
 
     [HttpGet("{id:guid}")]

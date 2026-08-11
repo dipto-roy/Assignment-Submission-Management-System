@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
-  getAssignmentSubmissions,
+  getAssignmentSubmissionsPage,
   gradeSubmission,
   setSubmissionStatus,
 } from "@/lib/api/submissions";
+import { usePagedList } from "@/lib/hooks/usePagedList";
+import { Pagination } from "@/components/ui/Pagination";
 import { formatDateTime } from "@/lib/datetime";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -32,42 +34,37 @@ interface SubmissionsReviewProps {
 
 /** Per-assignment review table: student, timing, status control, and the grading form. */
 export function SubmissionsReview({ assignmentId, maxMarks }: SubmissionsReviewProps) {
-  const [submissions, setSubmissions] = useState<SubmissionDetail[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [writeError, setWriteError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isActive = true;
+  const {
+    items: submissions,
+    meta,
+    isLoading,
+    isRefreshing,
+    error: loadError,
+    setPage,
+    setPageSize,
+    setItems,
+  } = usePagedList<SubmissionDetail>(
+    (params) => getAssignmentSubmissionsPage(assignmentId, params),
+    { filters: [assignmentId], errorMessage: "Failed to load submissions." },
+  );
 
-    getAssignmentSubmissions(assignmentId)
-      .then((data) => {
-        if (isActive) setSubmissions(data);
-      })
-      .catch((e: unknown) => {
-        if (isActive) setError(e instanceof Error ? e.message : "Failed to load submissions.");
-      })
-      .finally(() => {
-        if (isActive) setIsLoading(false);
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [assignmentId]);
+  const error = writeError ?? loadError;
 
   const handleStatusChange = async (id: string, status: SubmissionStatus) => {
     try {
       const updated = await setSubmissionStatus(id, status);
-      setSubmissions((prev) => prev.map((s) => (s.id === id ? updated : s)));
-      setError(null);
+      setItems((prev) => prev.map((s) => (s.id === id ? updated : s)));
+      setWriteError(null);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to change status.");
+      setWriteError(e instanceof Error ? e.message : "Failed to change status.");
     }
   };
 
   const handleGraded = (updated: SubmissionDetail) => {
-    setSubmissions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-    setError(null);
+    setItems((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    setWriteError(null);
   };
 
   if (isLoading) {
@@ -146,7 +143,7 @@ export function SubmissionsReview({ assignmentId, maxMarks }: SubmissionsReviewP
                       submission={submission}
                       maxMarks={maxMarks}
                       onGraded={handleGraded}
-                      onError={setError}
+                      onError={setWriteError}
                     />
                   </td>
                 </tr>
@@ -154,6 +151,16 @@ export function SubmissionsReview({ assignmentId, maxMarks }: SubmissionsReviewP
             </tbody>
           </table>
         </div>
+      )}
+
+      {submissions.length > 0 && (
+        <Pagination
+          meta={meta}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          label="submissions"
+          isBusy={isRefreshing}
+        />
       )}
 
       {submissions.length > 0 && (

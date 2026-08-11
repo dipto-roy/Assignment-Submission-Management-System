@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   createAssignment,
   deleteAssignment,
-  getAssignments,
+  getAssignmentsPage,
   setAssignmentPublishState,
   updateAssignment,
 } from "@/lib/api/assignments";
+import { usePagedList } from "@/lib/hooks/usePagedList";
+import { Pagination } from "@/components/ui/Pagination";
 import { AssignmentForm } from "@/components/teacher/AssignmentForm";
 import { SubmissionsReview } from "@/components/teacher/SubmissionsReview";
 import { useTeacherSubjects } from "@/lib/hooks/useTeacherSubjects";
@@ -28,38 +30,36 @@ import { AttachmentPanel } from "@/components/attachments/AttachmentPanel";
 /** Assignment list + CRUD + publish toggle, scoped by the API to the teacher's own subjects. */
 export function AssignmentsPanel() {
   const { subjects, isLoading: isLoadingSubjects, error: subjectsError } = useTeacherSubjects();
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [writeError, setWriteError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const reload = async () => {
-    try {
-      setAssignments(await getAssignments());
-      setError(null);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load assignments.");
-    }
-  };
+  const {
+    items: assignments,
+    meta,
+    isLoading,
+    isRefreshing,
+    error: loadError,
+    setPage,
+    setPageSize,
+    reload,
+    setItems,
+  } = usePagedList<Assignment>((params) => getAssignmentsPage(params), {
+    errorMessage: "Failed to load assignments.",
+  });
 
-  useEffect(() => {
-    getAssignments()
-      .then(setAssignments)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load assignments."))
-      .finally(() => setIsLoading(false));
-  }, []);
+  const error = writeError ?? loadError;
 
   const handleCreate = async (input: CreateAssignmentInput) => {
     await createAssignment(input);
-    await reload();
+    reload();
   };
 
   const handleUpdate = async (id: string, input: CreateAssignmentInput) => {
     const { title, description, deadline, maxMarks } = input;
     await updateAssignment(id, { title, description, deadline, maxMarks });
     setEditingId(null);
-    await reload();
+    reload();
   };
 
   const handleTogglePublish = async (assignment: Assignment) => {
@@ -68,10 +68,10 @@ export function AssignmentsPanel() {
         assignment.id,
         assignment.status !== "Published",
       );
-      setAssignments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
-      setError(null);
+      setItems((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+      setWriteError(null);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to change publish state.");
+      setWriteError(e instanceof Error ? e.message : "Failed to change publish state.");
     }
   };
 
@@ -79,10 +79,10 @@ export function AssignmentsPanel() {
   const handleDelete = async (id: string) => {
     try {
       await deleteAssignment(id);
-      setError(null);
-      await reload();
+      setWriteError(null);
+      reload();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to delete assignment.");
+      setWriteError(e instanceof Error ? e.message : "Failed to delete assignment.");
     }
   };
 
@@ -114,11 +114,7 @@ export function AssignmentsPanel() {
         <SectionHeading
           icon="layers"
           title="My assignments"
-          meta={
-            assignments.length > 0 ? (
-              <Badge tone="primary">{assignments.length}</Badge>
-            ) : undefined
-          }
+          meta={meta.total > 0 ? <Badge tone="primary">{meta.total}</Badge> : undefined}
         />
 
         {error && <Alert className="mb-3">{error}</Alert>}
@@ -132,6 +128,7 @@ export function AssignmentsPanel() {
             description="The first assignment you create for your subjects will appear here."
           />
         ) : (
+          <>
           <ul className="flex flex-col gap-4">
             {assignments.map((assignment) => (
               <li key={assignment.id} className={cardClass}>
@@ -246,6 +243,15 @@ export function AssignmentsPanel() {
               </li>
             ))}
           </ul>
+
+          <Pagination
+            meta={meta}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            label="assignments"
+            isBusy={isRefreshing}
+          />
+          </>
         )}
       </div>
     </section>

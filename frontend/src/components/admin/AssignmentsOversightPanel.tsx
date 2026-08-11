@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAssignments } from "@/lib/api/assignments";
+import { getAssignmentsPage } from "@/lib/api/assignments";
 import { getAssignmentSubmissions } from "@/lib/api/submissions";
 import { useClasses } from "@/lib/hooks/useClasses";
+import { usePagedList } from "@/lib/hooks/usePagedList";
+import { Pagination } from "@/components/ui/Pagination";
 import { formatDateTime } from "@/lib/datetime";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -28,11 +30,34 @@ const STATUS_FILTERS: readonly (AssignmentStatus | "")[] = ["", "Draft", "Publis
  */
 export function AssignmentsOversightPanel() {
   const { classes } = useClasses();
-  const [assignments, setAssignments] = useState<Assignment[] | null>(null);
   const [classId, setClassId] = useState("");
   const [status, setStatus] = useState<AssignmentStatus | "">("");
   const [search, setSearch] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [submissionsError, setSubmissionsError] = useState<string | null>(null);
+
+  const {
+    items: assignments,
+    meta,
+    isLoading,
+    isRefreshing,
+    error: loadError,
+    setPage,
+    setPageSize,
+  } = usePagedList<Assignment>(
+    (params) =>
+      getAssignmentsPage({
+        ...params,
+        classId: classId || undefined,
+        status: status || undefined,
+        search: search.trim() || undefined,
+      }),
+    {
+      filters: [classId, status, search.trim()],
+      errorMessage: "Failed to load assignments.",
+    },
+  );
+
+  const error = submissionsError ?? loadError;
 
   // Expanded assignment, with its submissions kept alongside the id they belong to so a
   // slow response can never render under a different assignment.
@@ -41,26 +66,6 @@ export function AssignmentsOversightPanel() {
     assignmentId: string;
     items: SubmissionDetail[];
   } | null>(null);
-
-  useEffect(() => {
-    let isActive = true;
-
-    getAssignments({
-      classId: classId || undefined,
-      status: status || undefined,
-      search: search.trim() || undefined,
-    })
-      .then((result) => {
-        if (isActive) setAssignments(result);
-      })
-      .catch((e: unknown) => {
-        if (isActive) setError(e instanceof Error ? e.message : "Failed to load assignments.");
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [classId, status, search]);
 
   useEffect(() => {
     if (!expandedId) return;
@@ -72,7 +77,9 @@ export function AssignmentsOversightPanel() {
         if (isActive) setSubmissions({ assignmentId: expandedId, items });
       })
       .catch((e: unknown) => {
-        if (isActive) setError(e instanceof Error ? e.message : "Failed to load submissions.");
+        if (isActive) {
+          setSubmissionsError(e instanceof Error ? e.message : "Failed to load submissions.");
+        }
       });
 
     return () => {
@@ -81,7 +88,7 @@ export function AssignmentsOversightPanel() {
   }, [expandedId]);
 
   const toggle = (id: string) => {
-    setError(null);
+    setSubmissionsError(null);
     setExpandedId((current) => (current === id ? null : id));
   };
 
@@ -140,7 +147,7 @@ export function AssignmentsOversightPanel() {
 
       {error && <Alert className="mb-3">{error}</Alert>}
 
-      {assignments === null ? (
+      {isLoading ? (
         <LoadingLine label="Loading assignments…" />
       ) : assignments.length === 0 ? (
         <EmptyState
@@ -149,6 +156,7 @@ export function AssignmentsOversightPanel() {
           description="Widen the class or status filter, or clear the search."
         />
       ) : (
+        <>
         <ul className="flex flex-col gap-3">
           {assignments.map((assignment) => (
             <li key={assignment.id} className={cardClass}>
@@ -201,6 +209,15 @@ export function AssignmentsOversightPanel() {
             </li>
           ))}
         </ul>
+
+        <Pagination
+          meta={meta}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          label="assignments"
+          isBusy={isRefreshing}
+        />
+        </>
       )}
     </section>
   );

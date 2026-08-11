@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { assignTeacher, createSubject, deleteSubject, getSubjects, getUsers } from "@/lib/api/admin";
+import { assignTeacher, createSubject, deleteSubject, getSubjectsPage, getUsers } from "@/lib/api/admin";
 import { useClasses } from "@/lib/hooks/useClasses";
+import { usePagedList } from "@/lib/hooks/usePagedList";
+import { Pagination } from "@/components/ui/Pagination";
 import type { Subject, UserSummary } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -17,56 +19,71 @@ import { compactInputClass, dividedListClass, subtleTextClass } from "@/componen
 
 export function SubjectsPanel() {
   const { classes } = useClasses();
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<UserSummary[]>([]);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [classId, setClassId] = useState("");
   const [assignSelections, setAssignSelections] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const reload = () => getSubjects().then(setSubjects).catch((e) => setError(e.message));
+  const {
+    items: subjects,
+    meta,
+    isLoading,
+    isRefreshing,
+    error: loadError,
+    setPage,
+    setPageSize,
+    reload,
+  } = usePagedList<Subject>((params) => getSubjectsPage(params), {
+    errorMessage: "Failed to load subjects.",
+  });
 
+  const error = formError ?? loadError;
+
+  // Filtered server-side rather than client-side: the assign picker needs every teacher,
+  // and narrowing by role first keeps them inside the one page this request asks for.
   useEffect(() => {
-    Promise.all([reload(), getUsers().then((all) => setTeachers(all.filter((u) => u.role === "Teacher")))])
-      .catch((e) => setError(e.message))
-      .finally(() => setIsLoading(false));
+    getUsers({ role: "Teacher" })
+      .then(setTeachers)
+      .catch((e: unknown) =>
+        setFormError(e instanceof Error ? e.message : "Failed to load teachers."),
+      );
   }, []);
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null);
+    setFormError(null);
     try {
       await createSubject({ name, code, classId });
       setName("");
       setCode("");
       setClassId("");
-      await reload();
+      reload();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create subject.");
+      setFormError(e instanceof Error ? e.message : "Failed to create subject.");
     }
   };
 
   const handleDelete = async (id: string) => {
-    setError(null);
+    setFormError(null);
     try {
       await deleteSubject(id);
-      await reload();
+      reload();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to delete subject.");
+      setFormError(e instanceof Error ? e.message : "Failed to delete subject.");
     }
   };
 
   const handleAssign = async (subjectId: string) => {
     const teacherId = assignSelections[subjectId];
     if (!teacherId) return;
-    setError(null);
+    setFormError(null);
     try {
       await assignTeacher(subjectId, teacherId);
-      await reload();
+      reload();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to assign teacher.");
+      setFormError(e instanceof Error ? e.message : "Failed to assign teacher.");
     }
   };
 
@@ -76,7 +93,7 @@ export function SubjectsPanel() {
         icon="book-open"
         title="Subjects"
         description="A subject belongs to one class, and its teachers may set assignments for it."
-        meta={subjects.length > 0 ? <Badge tone="primary">{subjects.length}</Badge> : undefined}
+        meta={meta.total > 0 ? <Badge tone="primary">{meta.total}</Badge> : undefined}
       />
 
       <form onSubmit={handleCreate} className="mb-5 flex flex-wrap items-end gap-2">
@@ -127,6 +144,7 @@ export function SubjectsPanel() {
           description="Add a subject to a class, then assign the teacher who runs it."
         />
       ) : (
+        <>
         <ul className={dividedListClass}>
           {subjects.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
@@ -183,6 +201,15 @@ export function SubjectsPanel() {
             </li>
           ))}
         </ul>
+
+        <Pagination
+          meta={meta}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          label="subjects"
+          isBusy={isRefreshing}
+        />
+        </>
       )}
     </section>
   );

@@ -1,3 +1,4 @@
+using AssignmentSubmissionSystem.Application.Common.Paging;
 using AssignmentSubmissionSystem.Domain.Entities;
 
 namespace AssignmentSubmissionSystem.Application.Abstractions;
@@ -6,7 +7,8 @@ public interface ISubjectRepository
 {
     Task<Subject?> FindByIdAsync(Guid id, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<Subject>> FindAllAsync(CancellationToken cancellationToken);
+    /// <summary>One page of subjects, ordered by name.</summary>
+    Task<PagedResult<Subject>> FindAllAsync(PageQuery page, CancellationToken cancellationToken);
 
     Task AddAsync(Subject subject, CancellationToken cancellationToken);
 

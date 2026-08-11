@@ -165,4 +165,19 @@ export interface ApiResponse<T> {
   success: boolean;
   data: T | null;
   error: string | null;
+  meta?: PageMeta | null;
+}
+
+/** Page totals returned in `meta` by every paginated list endpoint (`PagedResult.ToMeta`). */
+export interface PageMeta {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/** A list endpoint's response with its page totals kept alongside the rows. */
+export interface Paged<T> {
+  items: T[];
+  meta: PageMeta;
 }

@@ -2,11 +2,12 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssignmentsOversightPanel } from "@/components/admin/AssignmentsOversightPanel";
-import { getAssignments } from "@/lib/api/assignments";
+import { getAssignmentsPage } from "@/lib/api/assignments";
 import { getAssignmentSubmissions } from "@/lib/api/submissions";
+import { pagedOf } from "@/lib/testing/paged";
 import type { Assignment, SubmissionDetail } from "@/types";
 
-vi.mock("@/lib/api/assignments", () => ({ getAssignments: vi.fn() }));
+vi.mock("@/lib/api/assignments", () => ({ getAssignmentsPage: vi.fn() }));
 vi.mock("@/lib/api/submissions", () => ({ getAssignmentSubmissions: vi.fn() }));
 vi.mock("@/lib/hooks/useClasses", () => ({
   useClasses: () => ({
@@ -54,7 +55,7 @@ const submission: SubmissionDetail = {
 
 describe("AssignmentsOversightPanel", () => {
   beforeEach(() => {
-    vi.mocked(getAssignments).mockReset().mockResolvedValue([draft]);
+    vi.mocked(getAssignmentsPage).mockReset().mockResolvedValue(pagedOf([draft]));
     vi.mocked(getAssignmentSubmissions).mockReset().mockResolvedValue([submission]);
   });
 
@@ -88,26 +89,30 @@ describe("AssignmentsOversightPanel", () => {
     await userEvent.selectOptions(screen.getByLabelText("Filter by status"), "Published");
 
     await waitFor(() =>
-      expect(getAssignments).toHaveBeenLastCalledWith({
-        classId: undefined,
-        status: "Published",
-        search: undefined,
-      }),
+      expect(getAssignmentsPage).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          classId: undefined,
+          status: "Published",
+          search: undefined,
+        }),
+      ),
     );
 
     await userEvent.selectOptions(screen.getByLabelText("Filter by class"), "c-1");
 
     await waitFor(() =>
-      expect(getAssignments).toHaveBeenLastCalledWith({
-        classId: "c-1",
-        status: "Published",
-        search: undefined,
-      }),
+      expect(getAssignmentsPage).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          classId: "c-1",
+          status: "Published",
+          search: undefined,
+        }),
+      ),
     );
   });
 
   it("surfaces a failed load", async () => {
-    vi.mocked(getAssignments).mockRejectedValue(new Error("Forbidden"));
+    vi.mocked(getAssignmentsPage).mockRejectedValue(new Error("Forbidden"));
 
     render(<AssignmentsOversightPanel />);
 
@@ -115,7 +120,7 @@ describe("AssignmentsOversightPanel", () => {
   });
 
   it("shows an empty state when no assignment matches the filters", async () => {
-    vi.mocked(getAssignments).mockResolvedValue([]);
+    vi.mocked(getAssignmentsPage).mockResolvedValue(pagedOf([]));
 
     render(<AssignmentsOversightPanel />);
 
