@@ -2,22 +2,26 @@
 
 import { useRequireRole } from "@/lib/auth/useRequireRole";
 import { AssignmentsPanel } from "@/components/teacher/AssignmentsPanel";
-import { mutedTextClass } from "@/components/ui/styles";
+import { LoadingLine, PageHeader } from "@/components/ui/primitives";
 
 export default function TeacherDashboardPage() {
   const { isLoading } = useRequireRole("Teacher");
 
   if (isLoading) {
     return (
-      <main className="p-8">
-        <p className={mutedTextClass}>Loading…</p>
+      <main id="main-content" className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
+        <LoadingLine label="Checking your access…" />
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-4xl p-4 sm:p-8">
-      <h1 className="mb-6 text-xl font-semibold">Teacher Dashboard</h1>
+    <main id="main-content" className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
+      <PageHeader
+        icon="book-open"
+        title="Teacher dashboard"
+        description="Set work for your subjects, publish it, and grade what comes back."
+      />
 
       <AssignmentsPanel />
     </main>

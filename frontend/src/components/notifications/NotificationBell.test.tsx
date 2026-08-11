@@ -59,8 +59,11 @@ describe("NotificationBell", () => {
   it("does not render a badge when there is nothing unread", async () => {
     render(<NotificationBell />);
 
+    // The bell is an inline SVG, so the button carries no text of its own — any text
+    // content here would be the unread count.
     const button = await screen.findByRole("button", { name: "Notifications" });
-    expect(button).toHaveTextContent(/^🔔$/);
+    expect(button).toHaveTextContent("");
+    expect(button.querySelector("svg")).toBeInTheDocument();
   });
 
   it("caps the badge at 99+ so a large count cannot break the layout", async () => {

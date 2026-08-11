@@ -6,29 +6,45 @@ import { ClassesPanel } from "@/components/admin/ClassesPanel";
 import { SubjectsPanel } from "@/components/admin/SubjectsPanel";
 import { EnrollmentPanel } from "@/components/admin/EnrollmentPanel";
 import { AssignmentsOversightPanel } from "@/components/admin/AssignmentsOversightPanel";
-import { mutedTextClass } from "@/components/ui/styles";
+import { LoadingLine, PageHeader } from "@/components/ui/primitives";
+import { panelClass } from "@/components/ui/styles";
 
 export default function AdminDashboardPage() {
   const { isLoading } = useRequireRole("Admin");
 
   if (isLoading) {
     return (
-      <main className="p-8">
-        <p className={mutedTextClass}>Loading…</p>
+      <main id="main-content" className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
+        <LoadingLine label="Checking your access…" />
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-4xl p-4 sm:p-8">
-      <h1 className="mb-6 text-xl font-semibold">Admin Dashboard</h1>
+    <main id="main-content" className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
+      <PageHeader
+        icon="shield"
+        title="Admin dashboard"
+        description="People, classes, subjects, enrollment, and oversight of every assignment."
+      />
 
-      <div className="flex flex-col gap-10">
-        <UsersPanel />
-        <ClassesPanel />
-        <SubjectsPanel />
-        <EnrollmentPanel />
-        <AssignmentsOversightPanel />
+      {/* Each panel gets its own surface so five stacked admin tools stay visually separate. */}
+      <div className="flex flex-col gap-6">
+        <div className={panelClass}>
+          <UsersPanel />
+        </div>
+        <div className={panelClass}>
+          <ClassesPanel />
+        </div>
+        <div className={panelClass}>
+          <SubjectsPanel />
+        </div>
+        <div className={panelClass}>
+          <EnrollmentPanel />
+        </div>
+        <div className={panelClass}>
+          <AssignmentsOversightPanel />
+        </div>
       </div>
     </main>
   );

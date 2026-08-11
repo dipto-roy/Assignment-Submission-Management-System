@@ -2,7 +2,9 @@
 
 import { useState, type FormEvent } from "react";
 import { fromDateTimeLocalValue, toDateTimeLocalValue } from "@/lib/datetime";
-import { inputClass, primaryButtonClass, subtleButtonClass } from "@/components/ui/styles";
+import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/primitives";
+import { fieldLabelClass, inputClass, subtleTextClass, textareaClass } from "@/components/ui/styles";
 import type { Assignment, CreateAssignmentInput, Subject } from "@/types";
 
 const TITLE_MAX_LENGTH = 300;
@@ -79,9 +81,9 @@ export function AssignmentForm({ subjects, assignment, onSubmit, onCancel }: Ass
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className={fieldLabelClass}>
           <span>Title</span>
           <input
             value={title}
@@ -92,24 +94,32 @@ export function AssignmentForm({ subjects, assignment, onSubmit, onCancel }: Ass
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm">
-          <span>Subject</span>
-          <select
-            value={assignment?.subjectId ?? subjectId}
-            onChange={(e) => setSubjectId(e.target.value)}
-            disabled={isEditing}
-            className={inputClass}
-          >
-            <option value="">Select subject…</option>
-            {subjects.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.code}) — {s.className}
-              </option>
-            ))}
-          </select>
-        </label>
+        {/* The hint sits outside the label on purpose: text inside a <label> becomes part of
+            the field's accessible name, which would rename the control to "Subject The
+            subject cannot change after creation." */}
+        <div className="flex flex-col gap-1.5">
+          <label className={fieldLabelClass}>
+            <span>Subject</span>
+            <select
+              value={assignment?.subjectId ?? subjectId}
+              onChange={(e) => setSubjectId(e.target.value)}
+              disabled={isEditing}
+              className={inputClass}
+            >
+              <option value="">Select subject…</option>
+              {subjects.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.code}) — {s.className}
+                </option>
+              ))}
+            </select>
+          </label>
+          {isEditing && (
+            <p className={subtleTextClass}>The subject cannot change after creation.</p>
+          )}
+        </div>
 
-        <label className="flex flex-col gap-1 text-sm">
+        <label className={fieldLabelClass}>
           <span>Deadline</span>
           <input
             type="datetime-local"
@@ -119,7 +129,7 @@ export function AssignmentForm({ subjects, assignment, onSubmit, onCancel }: Ass
           />
         </label>
 
-        <label className="flex flex-col gap-1 text-sm">
+        <label className={fieldLabelClass}>
           <span>Max marks</span>
           <input
             type="number"
@@ -128,36 +138,37 @@ export function AssignmentForm({ subjects, assignment, onSubmit, onCancel }: Ass
             value={maxMarks}
             onChange={(e) => setMaxMarks(e.target.value)}
             placeholder="e.g. 100"
-            className={inputClass}
+            className={`${inputClass} font-mono`}
           />
         </label>
       </div>
 
-      <label className="flex flex-col gap-1 text-sm">
+      <label className={fieldLabelClass}>
         <span>Description</span>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          rows={3}
+          rows={4}
           placeholder="What should students submit?"
-          className={inputClass}
+          className={textareaClass}
         />
       </label>
 
-      {error && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
+      {error && <Alert>{error}</Alert>}
 
-      <div className="flex items-center gap-3">
-        <button type="submit" disabled={isSaving} className={primaryButtonClass}>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="submit"
+          icon={isEditing ? "check" : "plus"}
+          isBusy={isSaving}
+        >
           {isSaving ? "Saving…" : isEditing ? "Save changes" : "Create assignment"}
-        </button>
+        </Button>
+
         {onCancel && (
-          <button type="button" onClick={onCancel} className={subtleButtonClass}>
+          <Button variant="subtle" icon="x" onClick={onCancel}>
             Cancel
-          </button>
+          </Button>
         )}
       </div>
     </form>

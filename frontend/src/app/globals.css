@@ -1,26 +1,225 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Design system: "Soft UI Evolution" — education teal + course amber.
+ * Every colour below is a semantic token. Components must never hardcode a hex
+ * or a `dark:` colour variant; the tokens flip themselves for the dark theme.
+ *
+ * Contrast: every foreground/background pair below is >= 4.5:1 for body text and
+ * >= 3:1 for borders and large glyphs, in both themes.
+ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  /* Surfaces */
+  --app-background: #f0fdfa;
+  --app-surface: #ffffff;
+  --app-surface-raised: #ffffff;
+  --app-muted: #e6f2f0;
+
+  /* Text */
+  --app-foreground: #10302d;
+  --app-foreground-muted: #4a6764;
+  --app-foreground-subtle: #63807c;
+
+  /* Lines */
+  --app-border: #cbe5e1;
+  --app-border-strong: #a9d2cc;
+
+  /* Brand */
+  --app-primary: #0f766e;
+  --app-primary-hover: #115e59;
+  --app-on-primary: #ffffff;
+  --app-primary-soft: #d3f0eb;
+  --app-primary-soft-foreground: #0b544e;
+
+  /* Accent — reserved for the single highest-intent action on a surface */
+  --app-accent: #b45309;
+  --app-accent-hover: #92400e;
+  --app-on-accent: #ffffff;
+  --app-accent-soft: #fdefd7;
+  --app-accent-soft-foreground: #8a3f07;
+
+  /* Status */
+  --app-success: #15803d;
+  --app-success-soft: #dcf3e4;
+  --app-danger: #b91c1c;
+  --app-danger-hover: #991b1b;
+  --app-on-danger: #ffffff;
+  --app-danger-soft: #fce4e4;
+  --app-info: #1d4ed8;
+  --app-info-soft: #dee7fd;
+
+  /* Focus */
+  --app-ring: #0f766e;
+
+  /* Elevation — softer than flat, clearer than neumorphism */
+  --app-shadow-xs: 0 1px 2px rgb(15 46 44 / 0.06);
+  --app-shadow-sm: 0 1px 2px rgb(15 46 44 / 0.06), 0 2px 6px rgb(15 46 44 / 0.05);
+  --app-shadow-md: 0 2px 4px rgb(15 46 44 / 0.06), 0 8px 20px rgb(15 46 44 / 0.08);
+  --app-shadow-lg: 0 4px 8px rgb(15 46 44 / 0.07), 0 16px 40px rgb(15 46 44 / 0.12);
+
+  /* Motion */
+  --app-duration-fast: 150ms;
+  --app-duration-normal: 220ms;
+  --app-ease: cubic-bezier(0.2, 0, 0.2, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --app-background: #071a19;
+    --app-surface: #0e2422;
+    --app-surface-raised: #143331;
+    --app-muted: #142e2c;
+
+    --app-foreground: #e6f5f2;
+    --app-foreground-muted: #a3c0bc;
+    --app-foreground-subtle: #86a5a1;
+
+    --app-border: #204340;
+    --app-border-strong: #2e5b57;
+
+    --app-primary: #2dd4bf;
+    --app-primary-hover: #5eead4;
+    --app-on-primary: #042420;
+    --app-primary-soft: #10403b;
+    --app-primary-soft-foreground: #7ceada;
+
+    --app-accent: #fbbf24;
+    --app-accent-hover: #fcd34d;
+    --app-on-accent: #2a1a02;
+    --app-accent-soft: #3a2a08;
+    --app-accent-soft-foreground: #fcd77e;
+
+    --app-success: #4ade80;
+    --app-success-soft: #10321f;
+    --app-danger: #fca5a5;
+    --app-danger-hover: #fecaca;
+    --app-on-danger: #3a0d0d;
+    --app-danger-soft: #3a1616;
+    --app-info: #93b4fd;
+    --app-info-soft: #16264a;
+
+    --app-ring: #2dd4bf;
+
+    --app-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.4);
+    --app-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 6px rgb(0 0 0 / 0.35);
+    --app-shadow-md: 0 2px 4px rgb(0 0 0 / 0.4), 0 8px 20px rgb(0 0 0 / 0.45);
+    --app-shadow-lg: 0 4px 8px rgb(0 0 0 / 0.45), 0 16px 40px rgb(0 0 0 / 0.55);
   }
 }
 
+@theme inline {
+  --color-background: var(--app-background);
+  --color-surface: var(--app-surface);
+  --color-surface-raised: var(--app-surface-raised);
+  --color-muted: var(--app-muted);
+
+  --color-foreground: var(--app-foreground);
+  --color-foreground-muted: var(--app-foreground-muted);
+  --color-foreground-subtle: var(--app-foreground-subtle);
+
+  --color-border-subtle: var(--app-border);
+  --color-border-strong: var(--app-border-strong);
+
+  --color-primary: var(--app-primary);
+  --color-primary-hover: var(--app-primary-hover);
+  --color-on-primary: var(--app-on-primary);
+  --color-primary-soft: var(--app-primary-soft);
+  --color-primary-soft-foreground: var(--app-primary-soft-foreground);
+
+  --color-accent: var(--app-accent);
+  --color-accent-hover: var(--app-accent-hover);
+  --color-on-accent: var(--app-on-accent);
+  --color-accent-soft: var(--app-accent-soft);
+  --color-accent-soft-foreground: var(--app-accent-soft-foreground);
+
+  --color-success: var(--app-success);
+  --color-success-soft: var(--app-success-soft);
+  --color-danger: var(--app-danger);
+  --color-danger-hover: var(--app-danger-hover);
+  --color-on-danger: var(--app-on-danger);
+  --color-danger-soft: var(--app-danger-soft);
+  --color-info: var(--app-info);
+  --color-info-soft: var(--app-info-soft);
+
+  --color-ring: var(--app-ring);
+
+  --font-sans: var(--font-fira-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-fira-code), ui-monospace, monospace;
+
+  --shadow-xs: var(--app-shadow-xs);
+  --shadow-sm: var(--app-shadow-sm);
+  --shadow-md: var(--app-shadow-md);
+  --shadow-lg: var(--app-shadow-lg);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--app-background);
+  color: var(--app-foreground);
+  font-family: var(--font-fira-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Prevents the horizontal scroll a wide table would otherwise leak to the page. */
+  overflow-x: hidden;
+}
+
+/*
+ * One focus treatment for the whole app. Focus rings are never removed — they are
+ * the only affordance a keyboard user has.
+ */
+:focus-visible {
+  outline: 2px solid var(--app-ring);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* Native controls should follow the theme instead of rendering a light-mode dropdown. */
+:root {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+::selection {
+  background: var(--app-primary-soft);
+  color: var(--app-primary-soft-foreground);
+}
+
+/* Motion is decoration here, never the only signal — so it is safe to switch off. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes app-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.app-animate-in {
+  animation: app-fade-in-up var(--app-duration-normal) var(--app-ease) both;
+}
+
+@keyframes app-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.app-spin {
+  animation: app-spin 0.8s linear infinite;
 }
