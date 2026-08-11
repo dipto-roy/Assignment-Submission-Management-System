@@ -1,5 +1,6 @@
 using AssignmentSubmissionSystem.Application.Abstractions;
 using AssignmentSubmissionSystem.Application.Assignments.Dtos;
+using AssignmentSubmissionSystem.Application.Attachments;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
 using AssignmentSubmissionSystem.Application.Common.Paging;
 using AssignmentSubmissionSystem.Application.Notifications;
@@ -184,5 +185,6 @@ public sealed class AssignmentService(
         assignment.TeacherId,
         assignment.Teacher.Name,
         assignment.CreatedAt,
-        assignment.UpdatedAt);
+        assignment.UpdatedAt,
+        AttachmentMapper.ToDtos(assignment.Attachments));
 }

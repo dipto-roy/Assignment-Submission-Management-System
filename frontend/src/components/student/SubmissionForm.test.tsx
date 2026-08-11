@@ -27,6 +27,7 @@ const assignmentDue = (deadline: Date): Assignment => ({
   teacherName: "Tess Teacher",
   createdAt: "2026-08-01T00:00:00Z",
   updatedAt: null,
+  attachments: [],
 });
 
 const existingSubmission: Submission = {
@@ -42,6 +43,7 @@ const existingSubmission: Submission = {
   submittedAt: "2026-08-02T00:00:00Z",
   updatedAt: null,
   gradedAt: null,
+  attachments: [],
 };
 
 const openAssignment = assignmentDue(new Date(Date.now() + 24 * HOUR_MS));

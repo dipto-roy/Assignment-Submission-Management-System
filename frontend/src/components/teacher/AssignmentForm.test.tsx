@@ -33,6 +33,7 @@ const existing: Assignment = {
   teacherName: "Tess Teacher",
   createdAt: "2026-08-01T00:00:00Z",
   updatedAt: null,
+  attachments: [],
 };
 
 const futureDeadlineValue = toDateTimeLocalValue(new Date(Date.now() + 3 * DAY_MS).toISOString());

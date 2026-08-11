@@ -30,6 +30,7 @@ const draft: Assignment = {
   teacherName: "Tina Teacher",
   createdAt: "2026-08-01T00:00:00Z",
   updatedAt: null,
+  attachments: [],
 };
 
 const submission: SubmissionDetail = {
@@ -48,6 +49,7 @@ const submission: SubmissionDetail = {
   submittedAt: "2026-08-02T00:00:00Z",
   updatedAt: null,
   gradedAt: "2026-08-03T00:00:00Z",
+  attachments: [],
 };
 
 describe("AssignmentsOversightPanel", () => {

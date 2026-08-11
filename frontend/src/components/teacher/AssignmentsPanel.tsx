@@ -19,6 +19,7 @@ import {
   subtleButtonClass,
 } from "@/components/ui/styles";
 import type { Assignment, CreateAssignmentInput } from "@/types";
+import { AttachmentPanel } from "@/components/attachments/AttachmentPanel";
 
 /** Assignment list + CRUD + publish toggle, scoped by the API to the teacher's own subjects. */
 export function AssignmentsPanel() {
@@ -168,6 +169,17 @@ export function AssignmentsPanel() {
                 <p className="mt-2 whitespace-pre-wrap text-sm text-black/70 dark:text-white/70">
                   {assignment.description}
                 </p>
+
+                {/* The teacher owns the assignment, so they may add and remove its files. */}
+                <div className="mt-3">
+                  <AttachmentPanel
+                    owner="assignment"
+                    ownerId={assignment.id}
+                    attachments={assignment.attachments}
+                    canModify
+                    label="Assignment files"
+                  />
+                </div>
 
                 {editingId === assignment.id && (
                   <div className="mt-4 border-t border-black/10 pt-4 dark:border-white/15">

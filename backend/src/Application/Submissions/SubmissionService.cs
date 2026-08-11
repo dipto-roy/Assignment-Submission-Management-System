@@ -1,4 +1,5 @@
 using AssignmentSubmissionSystem.Application.Abstractions;
+using AssignmentSubmissionSystem.Application.Attachments;
 using AssignmentSubmissionSystem.Application.Common.Exceptions;
 using AssignmentSubmissionSystem.Application.Common.Paging;
 using AssignmentSubmissionSystem.Application.Notifications;
@@ -221,7 +222,8 @@ public sealed class SubmissionService(
         submission.Feedback,
         submission.SubmittedAt,
         submission.UpdatedAt,
-        submission.GradedAt);
+        submission.GradedAt,
+        AttachmentMapper.ToDtos(submission.Attachments));
 
     private static SubmissionSummaryDto ToDto(Submission submission) => new(
         submission.Id,
@@ -235,5 +237,6 @@ public sealed class SubmissionService(
         submission.Feedback,
         submission.SubmittedAt,
         submission.UpdatedAt,
-        submission.GradedAt);
+        submission.GradedAt,
+        AttachmentMapper.ToDtos(submission.Attachments));
 }

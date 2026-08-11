@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { subtleButtonClass } from "@/components/ui/styles";
 import type { UserRole } from "@/types";
 
@@ -48,6 +49,7 @@ export function AppNav() {
         </div>
 
         <div className="flex items-center gap-3 text-sm">
+          <NotificationBell />
           <span className="text-black/60 dark:text-white/60">
             {user.name} · {user.role}
           </span>

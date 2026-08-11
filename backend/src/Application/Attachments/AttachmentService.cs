@@ -94,13 +94,13 @@ public sealed class AttachmentService(
     public async Task<IReadOnlyList<AttachmentDto>> ListForAssignmentAsync(Guid assignmentId, CancellationToken cancellationToken)
     {
         var items = await attachmentRepository.FindByAssignmentAsync(assignmentId, cancellationToken);
-        return items.Select(ToDto).ToList();
+        return AttachmentMapper.ToDtos(items);
     }
 
     public async Task<IReadOnlyList<AttachmentDto>> ListForSubmissionAsync(Guid submissionId, CancellationToken cancellationToken)
     {
         var items = await attachmentRepository.FindBySubmissionAsync(submissionId, cancellationToken);
-        return items.Select(ToDto).ToList();
+        return AttachmentMapper.ToDtos(items);
     }
 
     public async Task<AttachmentDownload> DownloadAsync(
@@ -168,7 +168,7 @@ public sealed class AttachmentService(
         setOwner(attachment);
 
         await attachmentRepository.AddAsync(attachment, cancellationToken);
-        return ToDto(attachment);
+        return AttachmentMapper.ToDto(attachment);
     }
 
     /// <summary>
@@ -258,11 +258,4 @@ public sealed class AttachmentService(
         throw new ForbiddenAppException("You may not delete this file.");
     }
 
-    private static AttachmentDto ToDto(Attachment attachment) => new(
-        attachment.Id,
-        attachment.FileName,
-        attachment.ContentType,
-        attachment.SizeBytes,
-        attachment.UploadedById,
-        attachment.UploadedAt);
 }

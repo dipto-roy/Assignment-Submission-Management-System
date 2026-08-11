@@ -33,6 +33,7 @@ const submission: SubmissionDetail = {
   submittedAt: "2026-08-02T00:00:00Z",
   updatedAt: null,
   gradedAt: null,
+  attachments: [],
 };
 
 const renderReview = async () => {

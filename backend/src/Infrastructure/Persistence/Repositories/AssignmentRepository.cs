@@ -13,6 +13,7 @@ public sealed class AssignmentRepository(AppDbContext db) : IAssignmentRepositor
         db.Assignments
             .Include(a => a.Subject).ThenInclude(s => s.Class)
             .Include(a => a.Teacher)
+            .Include(a => a.Attachments)
             .SingleOrDefaultAsync(a => a.Id == id, cancellationToken);
 
     public Task<PagedResult<Assignment>> FindAllAsync(AssignmentQuery query, CancellationToken cancellationToken) =>
@@ -63,6 +64,9 @@ public sealed class AssignmentRepository(AppDbContext db) : IAssignmentRepositor
         return scoped
             .Include(a => a.Subject).ThenInclude(s => s.Class)
             .Include(a => a.Teacher)
+            // Attachments travel with the assignment so the dashboards can show which ones
+            // carry a brief without a follow-up request per row.
+            .Include(a => a.Attachments)
             .OrderByDescending(a => a.CreatedAt)
             .ToPagedResultAsync(query, cancellationToken);
     }

@@ -56,8 +56,27 @@ services:
       # would appear to work while the code defaults (10 requests / 60s) stayed in force.
       RateLimiting__Login__PermitLimit: ${RateLimiting__Login__PermitLimit:-10}
       RateLimiting__Login__WindowSeconds: ${RateLimiting__Login__WindowSeconds:-60}
+      # File uploads. Auto resolves to Cloudinary when all three credentials are present and
+      # to local disk otherwise; the API logs which it picked at startup. Local files live on
+      # the uploads volume below so a container recreate does not destroy them.
+      Storage__Provider: ${Storage__Provider:-Auto}
+      Storage__MaxFileSizeBytes: ${Storage__MaxFileSizeBytes:-10485760}
+      Storage__MaxFilesPerOwner: ${Storage__MaxFilesPerOwner:-5}
+      Storage__LocalRootPath: /app/uploads
+      Storage__Cloudinary__CloudName: ${Storage__Cloudinary__CloudName:-}
+      Storage__Cloudinary__ApiKey: ${Storage__Cloudinary__ApiKey:-}
+      Storage__Cloudinary__ApiSecret: ${Storage__Cloudinary__ApiSecret:-}
+      Storage__Cloudinary__Folder: ${Storage__Cloudinary__Folder:-assignment-submission}
+      # Deadline reminder worker.
+      Notifications__DeadlineReminder__Enabled: ${Notifications__DeadlineReminder__Enabled:-true}
+      Notifications__DeadlineReminder__ScanIntervalMinutes: ${Notifications__DeadlineReminder__ScanIntervalMinutes:-30}
+      Notifications__DeadlineReminder__LeadTimeHours: ${Notifications__DeadlineReminder__LeadTimeHours:-24}
     ports:
       - "${API_PORT:-5000}:8080"
+    volumes:
+      # Only used by the local storage provider. Named rather than bind-mounted so the files
+      # survive `docker compose down` and are not written into the repository tree.
+      - uploads:/app/uploads
     # /health is anonymous and checks the database connection, so "healthy" here means the
     # API can actually serve requests. busybox wget ships in the alpine runtime image.
     healthcheck:
@@ -104,3 +123,4 @@ services:
 
 volumes:
   postgres_data:
+  uploads:

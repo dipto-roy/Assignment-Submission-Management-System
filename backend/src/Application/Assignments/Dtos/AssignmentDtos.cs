@@ -1,3 +1,5 @@
+using AssignmentSubmissionSystem.Application.Attachments.Dtos;
+
 namespace AssignmentSubmissionSystem.Application.Assignments.Dtos;
 
 public sealed record AssignmentSummaryDto(
@@ -14,7 +16,10 @@ public sealed record AssignmentSummaryDto(
     Guid TeacherId,
     string TeacherName,
     DateTime CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    // Embedded rather than fetched per row: a teacher's list of 30 assignments would
+    // otherwise cost 30 extra requests to show which ones carry a brief.
+    IReadOnlyList<AttachmentDto> Attachments);
 
 public sealed record CreateAssignmentDto(string Title, string Description, DateTime Deadline, int MaxMarks, Guid SubjectId);
 

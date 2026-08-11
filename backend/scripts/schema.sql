@@ -197,3 +197,110 @@ BEGIN
 END $EF$;
 COMMIT;
 
+START TRANSACTION;
+
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260811130048_AddAttachmentsAndNotifications') THEN
+    CREATE TABLE "Attachments" (
+        "Id" uuid NOT NULL,
+        "FileName" character varying(255) NOT NULL,
+        "ContentType" character varying(150) NOT NULL,
+        "SizeBytes" bigint NOT NULL,
+        "StorageKey" character varying(500) NOT NULL,
+        "StorageProvider" character varying(30) NOT NULL,
+        "AssignmentId" uuid,
+        "SubmissionId" uuid,
+        "UploadedById" uuid NOT NULL,
+        "UploadedAt" timestamp with time zone NOT NULL,
+        CONSTRAINT "PK_Attachments" PRIMARY KEY ("Id"),
+        CONSTRAINT "CK_Attachments_ExactlyOneOwner" CHECK (("AssignmentId" IS NOT NULL AND "SubmissionId" IS NULL)
+                      OR ("AssignmentId" IS NULL AND "SubmissionId" IS NOT NULL)),
+        CONSTRAINT "FK_Attachments_Assignments_AssignmentId" FOREIGN KEY ("AssignmentId") REFERENCES "Assignments" ("Id") ON DELETE CASCADE,
+        CONSTRAINT "FK_Attachments_Submissions_SubmissionId" FOREIGN KEY ("SubmissionId") REFERENCES "Submissions" ("Id") ON DELETE CASCADE,
+        CONSTRAINT "FK_Attachments_Users_UploadedById" FOREIGN KEY ("UploadedById") REFERENCES "Users" ("Id") ON DELETE RESTRICT
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260811130048_AddAttachmentsAndNotifications') THEN
+    CREATE TABLE "Notifications" (
+        "Id" uuid NOT NULL,
+        "UserId" uuid NOT NULL,
+        "Type" character varying(30) NOT NULL,
+        "Title" character varying(200) NOT NULL,
+        "Message" character varying(1000) NOT NULL,
+        "AssignmentId" uuid,
+        "SubmissionId" uuid,
+        "IsRead" boolean NOT NULL,
+        "CreatedAt" timestamp with time zone NOT NULL,
+        "ReadAt" timestamp with time zone,
+        CONSTRAINT "PK_Notifications" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_Notifications_Assignments_AssignmentId" FOREIGN KEY ("AssignmentId") REFERENCES "Assignments" ("Id") ON DELETE SET NULL,
+        CONSTRAINT "FK_Notifications_Submissions_SubmissionId" FOREIGN KEY ("SubmissionId") REFERENCES "Submissions" ("Id") ON DELETE SET NULL,
+        CONSTRAINT "FK_Notifications_Users_UserId" FOREIGN KEY ("UserId") REFERENCES "Users" ("Id") ON DELETE CASCADE
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260811130048_AddAttachmentsAndNotifications') THEN
+    CREATE INDEX "IX_Attachments_AssignmentId" ON "Attachments" ("AssignmentId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260811130048_AddAttachmentsAndNotifications') THEN
+    CREATE INDEX "IX_Attachments_SubmissionId" ON "Attachments" ("SubmissionId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260811130048_AddAttachmentsAndNotifications') THEN
+    CREATE INDEX "IX_Attachments_UploadedById" ON "Attachments" ("UploadedById");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260811130048_AddAttachmentsAndNotifications') THEN
+    CREATE INDEX "IX_Notifications_AssignmentId" ON "Notifications" ("AssignmentId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260811130048_AddAttachmentsAndNotifications') THEN
+    CREATE UNIQUE INDEX "IX_Notifications_DeadlineReminder_Once" ON "Notifications" ("UserId", "AssignmentId") WHERE "Type" = 'DeadlineApproaching';
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260811130048_AddAttachmentsAndNotifications') THEN
+    CREATE INDEX "IX_Notifications_SubmissionId" ON "Notifications" ("SubmissionId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260811130048_AddAttachmentsAndNotifications') THEN
+    CREATE INDEX "IX_Notifications_UserId_IsRead_CreatedAt" ON "Notifications" ("UserId", "IsRead", "CreatedAt");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260811130048_AddAttachmentsAndNotifications') THEN
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20260811130048_AddAttachmentsAndNotifications', '8.0.11');
+    END IF;
+END $EF$;
+COMMIT;
+
