@@ -462,12 +462,13 @@ Documented per the brief's instruction to make and record reasonable assumptions
   notifications are prevented by a unique index rather than by coordination, so extra replicas
   are safe, but there is no retry or dead-letter handling if a scan fails: it simply tries
   again on the next tick.
-- **List UIs request the maximum page size (100) rather than paging.** The API is paginated
-  and filterable, but the dashboards render whole lists; a class larger than 100 students
-  would need pager controls in the UI.
+- **The enrollment picker is not paged.** The admin, teacher and student dashboards page
+  server-side (10 rows per page) through the paginated API, but the class enrollment screen
+  still loads the full roster and the full student list in one request, so a very large
+  school would want pager controls there too.
 - **Rate limiting covers only `POST /auth/login`**, and its fixed window is per process — a
   multi-instance deployment would need a shared store.
 - **No email delivery**, password reset, or account self-service.
 - **`schema.sql` creates the schema but seeds no data** (see [Database setup](#database-setup)).
-- **Frontend coverage is 44% overall.** The business-rule modules are well above the 80%
-  bar; the remainder is presentational panels covered indirectly.
+- **Frontend coverage is 53% of lines overall** (44% of functions). The business-rule modules
+  are well above the 80% bar; the remainder is presentational panels covered indirectly.
