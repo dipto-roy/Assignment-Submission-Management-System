@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAssignments } from "@/lib/api/assignments";
+import { getAssignmentsPage } from "@/lib/api/assignments";
 import { getMySubmissions } from "@/lib/api/submissions";
+import { usePagedList } from "@/lib/hooks/usePagedList";
+import { Pagination } from "@/components/ui/Pagination";
 import { AssignmentCard } from "@/components/student/AssignmentCard";
 import { MySubmissionsPanel } from "@/components/student/MySubmissionsPanel";
-import { Icon } from "@/components/ui/Icon";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { Alert, EmptyState, LoadingLine, SectionHeading, Skeleton } from "@/components/ui/primitives";
-import { isPastDeadline } from "@/lib/datetime";
 import type { Assignment, Submission } from "@/types";
 
 /**
@@ -16,22 +17,38 @@ import type { Assignment, Submission } from "@/types";
  * server-side to Published assignments for the student's class (business rule §7.3).
  */
 export function StudentDashboard() {
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
+  const [submissionsError, setSubmissionsError] = useState<string | null>(null);
 
+  const {
+    items: assignments,
+    meta,
+    isLoading: isLoadingAssignments,
+    isRefreshing,
+    error: assignmentsError,
+    setPage,
+    setPageSize,
+  } = usePagedList<Assignment>((params) => getAssignmentsPage(params), {
+    errorMessage: "Failed to load your assignments.",
+  });
+
+  /**
+   * The submission list is fetched whole rather than by page: it is what tells each
+   * assignment card whether this student has already answered it, and a card on page 1
+   * can easily correspond to a submission that a paged fetch would leave on page 3.
+   */
   useEffect(() => {
-    Promise.all([getAssignments(), getMySubmissions()])
-      .then(([loadedAssignments, loadedSubmissions]) => {
-        setAssignments(loadedAssignments);
-        setSubmissions(loadedSubmissions);
-      })
+    getMySubmissions()
+      .then(setSubmissions)
       .catch((e: unknown) =>
-        setError(e instanceof Error ? e.message : "Failed to load your assignments."),
+        setSubmissionsError(e instanceof Error ? e.message : "Failed to load your submissions."),
       )
-      .finally(() => setIsLoading(false));
+      .finally(() => setIsLoadingSubmissions(false));
   }, []);
+
+  const isLoading = isLoadingAssignments || isLoadingSubmissions;
+  const error = assignmentsError ?? submissionsError;
 
   const handleSaved = (saved: Submission) => {
     setSubmissions((prev) => {
@@ -53,10 +70,11 @@ export function StudentDashboard() {
     );
   }
 
-  // Counted once here so the summary and the section meta cannot disagree.
-  const openCount = assignments.filter(
-    (a) => !isPastDeadline(a.deadline) && !findSubmission(a.id),
-  ).length;
+  // Both tiles below count over data held in full — the assignment total comes from the
+  // page meta, and submissions are fetched whole — so paging never changes a headline
+  // number. Counting the open ones would need every assignment, which is exactly what
+  // pagination stops loading, so "handed in" stands in for it.
+  const submittedCount = submissions.length;
   const gradedCount = submissions.filter(
     (s) => s.status === "Graded" || s.status === "Returned",
   ).length;
@@ -67,8 +85,8 @@ export function StudentDashboard() {
 
       {/* At-a-glance counts: the first question a student opens this page to answer. */}
       <dl className="grid gap-3 sm:grid-cols-3">
-        <SummaryTile icon="inbox" label="Assignments" value={assignments.length} />
-        <SummaryTile icon="clock" label="Awaiting your answer" value={openCount} tone="accent" />
+        <SummaryTile icon="inbox" label="Assignments" value={meta.total} />
+        <SummaryTile icon="send" label="Handed in" value={submittedCount} tone="accent" />
         <SummaryTile icon="check-circle" label="Graded" value={gradedCount} tone="success" />
       </dl>
 
@@ -86,16 +104,26 @@ export function StudentDashboard() {
             description="When a teacher publishes an assignment for your class, it appears here."
           />
         ) : (
-          <ul className="flex flex-col gap-4">
-            {assignments.map((assignment) => (
-              <AssignmentCard
-                key={assignment.id}
-                assignment={assignment}
-                submission={findSubmission(assignment.id)}
-                onSaved={handleSaved}
-              />
-            ))}
-          </ul>
+          <>
+            <ul className="flex flex-col gap-4">
+              {assignments.map((assignment) => (
+                <AssignmentCard
+                  key={assignment.id}
+                  assignment={assignment}
+                  submission={findSubmission(assignment.id)}
+                  onSaved={handleSaved}
+                />
+              ))}
+            </ul>
+
+            <Pagination
+              meta={meta}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              label="assignments"
+              isBusy={isRefreshing}
+            />
+          </>
         )}
       </section>
 
@@ -105,7 +133,7 @@ export function StudentDashboard() {
 }
 
 interface SummaryTileProps {
-  icon: "inbox" | "clock" | "check-circle";
+  icon: IconName;
   label: string;
   value: number;
   tone?: "primary" | "accent" | "success";

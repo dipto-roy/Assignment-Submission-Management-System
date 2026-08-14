@@ -1,5 +1,6 @@
 using AssignmentSubmissionSystem.Application.Common;
 using AssignmentSubmissionSystem.Application.Common.Constants;
+using AssignmentSubmissionSystem.Application.Common.Paging;
 using AssignmentSubmissionSystem.Application.Subjects;
 using AssignmentSubmissionSystem.Application.Subjects.Dtos;
 using FluentValidation;
@@ -17,12 +18,18 @@ public sealed class SubjectsController(
     IValidator<UpdateSubjectDto> updateValidator,
     IValidator<AssignTeacherDto> assignTeacherValidator) : ControllerBase
 {
-    // Open to any authenticated role — Admin manages subjects, Teacher/Student browse their own.
+    /// <summary>
+    /// Paginated: `?page=1&amp;pageSize=20`. Open to any authenticated role — Admin manages
+    /// subjects, Teacher/Student browse their own. Callers filling a subject picker should
+    /// ask for a large page rather than assume the default returns everything.
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<SubjectSummaryDto>>>> GetAll(CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<SubjectSummaryDto>>>> GetAll(
+        [FromQuery] PageQuery query,
+        CancellationToken ct)
     {
-        var subjects = await subjectService.GetAllAsync(ct);
-        return Ok(ApiResponse<IReadOnlyList<SubjectSummaryDto>>.Ok(subjects));
+        var page = await subjectService.GetAllAsync(query, ct);
+        return Ok(ApiResponse<IReadOnlyList<SubjectSummaryDto>>.Ok(page.Items, page.ToMeta()));
     }
 
     [HttpGet("{id:guid}")]

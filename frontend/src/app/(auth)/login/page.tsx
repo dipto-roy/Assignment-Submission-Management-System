@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Alert } from "@/components/ui/primitives";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { fieldLabelClass, inputClass } from "@/components/ui/styles";
 
 export default function LoginPage() {
@@ -77,22 +78,14 @@ export default function LoginPage() {
 
           <label className={fieldLabelClass}>
             Password
-            <span className="relative block">
-              <Icon
-                name="shield"
-                size="sm"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground-subtle"
-              />
-              <input
-                type="password"
-                required
-                autoComplete="current-password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={`${inputClass} pl-9`}
-              />
-            </span>
+            <PasswordInput
+              leadingIcon="shield"
+              required
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </label>
 
           {error && <Alert>{error}</Alert>}

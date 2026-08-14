@@ -1,6 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { formatDateTime } from "@/lib/datetime";
+import { DEFAULT_PAGE_SIZE } from "@/lib/api/query";
+import { Pagination } from "@/components/ui/Pagination";
 import { Badge, EmptyState, SectionHeading } from "@/components/ui/primitives";
 import {
   mutedTextClass,
@@ -22,8 +25,40 @@ export const SUBMISSION_BADGE: Record<
   Returned: { tone: "info", icon: "mail" },
 };
 
-/** `GET /submissions/mine` view — status, marks, and teacher feedback in one place. */
+/**
+ * `GET /submissions/mine` view — status, marks, and teacher feedback in one place.
+ *
+ * Paging happens here rather than on the server: the dashboard above already holds every
+ * submission (it needs the whole set to tell each assignment card whether it was answered),
+ * so slicing locally keeps the table readable without a second round trip per page.
+ */
 export function MySubmissionsPanel({ submissions }: { submissions: Submission[] }) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+
+  const totalPages = Math.ceil(submissions.length / pageSize);
+
+  // A submission arriving while on the last page can shrink the page count under the
+  // current page; clamp rather than render a blank table.
+  const currentPage = Math.min(page, Math.max(totalPages, 1));
+
+  const visible = useMemo(
+    () => submissions.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [submissions, currentPage, pageSize],
+  );
+
+  const meta = {
+    total: submissions.length,
+    page: currentPage,
+    pageSize,
+    totalPages,
+  };
+
+  const changePageSize = (size: number) => {
+    setPageSize(size);
+    setPage(1);
+  };
+
   return (
     <section>
       <SectionHeading
@@ -39,6 +74,7 @@ export function MySubmissionsPanel({ submissions }: { submissions: Submission[] 
           description="Open an assignment above and write your answer to make your first submission."
         />
       ) : (
+        <>
         <div className="overflow-x-auto rounded-xl border border-border-subtle bg-surface shadow-sm">
           <table className={tableClass}>
             <thead className={tableHeadClass}>
@@ -51,7 +87,7 @@ export function MySubmissionsPanel({ submissions }: { submissions: Submission[] 
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
-              {submissions.map((submission) => {
+              {visible.map((submission) => {
                 const badge = SUBMISSION_BADGE[submission.status];
 
                 return (
@@ -86,6 +122,14 @@ export function MySubmissionsPanel({ submissions }: { submissions: Submission[] 
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          meta={meta}
+          onPageChange={setPage}
+          onPageSizeChange={changePageSize}
+          label="submissions"
+        />
+        </>
       )}
     </section>
   );

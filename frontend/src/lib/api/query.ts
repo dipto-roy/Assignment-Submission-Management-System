@@ -11,6 +11,15 @@ export const MAX_PAGE_SIZE = 100;
  */
 export const FULL_PAGE = { pageSize: MAX_PAGE_SIZE } as const;
 
+/**
+ * Rows per page for the paginated dashboard lists. Small enough that a page fits on a
+ * laptop screen without scrolling past the controls that follow it.
+ */
+export const DEFAULT_PAGE_SIZE = 10;
+
+/** Offered in the "rows per page" control. Every value is <= `MAX_PAGE_SIZE`. */
+export const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+
 export interface PageParams {
   page?: number;
   pageSize?: number;

@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, apiFetchPaged } from "@/lib/api/client";
 import { FULL_PAGE, toQueryString, type PageParams } from "@/lib/api/query";
 import type { Assignment, AssignmentStatus, CreateAssignmentInput, UpdateAssignmentInput } from "@/types";
 
@@ -16,6 +16,10 @@ export interface AssignmentListParams extends PageParams {
  */
 export const getAssignments = (params: AssignmentListParams = FULL_PAGE) =>
   apiFetch<Assignment[]>(`/assignments${toQueryString({ ...FULL_PAGE, ...params })}`);
+
+/** Same endpoint as `getAssignments`, keeping the page totals the list controls need. */
+export const getAssignmentsPage = (params: AssignmentListParams) =>
+  apiFetchPaged<Assignment>(`/assignments${toQueryString({ ...params })}`);
 
 export const getAssignment = (id: string) => apiFetch<Assignment>(`/assignments/${id}`);
 

@@ -1,4 +1,4 @@
-import type { ApiResponse } from "@/types";
+import type { ApiResponse, Paged, PageMeta } from "@/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api/v1";
 
@@ -56,6 +56,65 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   }
 
   return json;
+}
+
+/**
+ * Same request as `apiFetch`, but keeps the `meta` envelope field that paginated list
+ * endpoints put their totals in. `apiFetch` throws that away, which is why a caller that
+ * needs to render page controls has to come through here instead.
+ *
+ * A server that answers without `meta` (or with a partial one) still yields a usable page
+ * describing the rows that did arrive, so a missing envelope degrades to a single page
+ * rather than to a crash.
+ */
+export async function apiFetchPaged<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<Paged<T>> {
+  const token = getToken();
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+  });
+
+  if (!response.ok) {
+    throw new Error(await safeErrorMessage(response));
+  }
+
+  const json = (await response.json()) as ApiResponse<T[]> | T[];
+
+  if (Array.isArray(json)) {
+    return { items: json, meta: singlePageMeta(json.length) };
+  }
+
+  if (!json.success) {
+    throw new Error(json.error ?? "Request failed.");
+  }
+
+  const items = json.data ?? [];
+  return { items, meta: normalizeMeta(json.meta, items.length) };
+}
+
+function singlePageMeta(count: number): PageMeta {
+  return { total: count, page: 1, pageSize: count || 1, totalPages: count === 0 ? 0 : 1 };
+}
+
+function normalizeMeta(meta: PageMeta | null | undefined, count: number): PageMeta {
+  if (!meta || typeof meta.total !== "number") return singlePageMeta(count);
+
+  const pageSize = meta.pageSize > 0 ? meta.pageSize : count || 1;
+  return {
+    total: meta.total,
+    page: meta.page > 0 ? meta.page : 1,
+    pageSize,
+    totalPages: meta.totalPages ?? Math.ceil(meta.total / pageSize),
+  };
 }
 
 /**

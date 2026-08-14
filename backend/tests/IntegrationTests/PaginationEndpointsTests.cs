@@ -5,6 +5,8 @@ using System.Text.Json;
 using AssignmentSubmissionSystem.Application.Auth.Dtos;
 using AssignmentSubmissionSystem.Application.Common;
 using AssignmentSubmissionSystem.Application.Common.Paging;
+using AssignmentSubmissionSystem.Application.Classes.Dtos;
+using AssignmentSubmissionSystem.Application.Subjects.Dtos;
 using AssignmentSubmissionSystem.Application.Users.Dtos;
 
 namespace AssignmentSubmissionSystem.IntegrationTests;
@@ -106,5 +108,83 @@ public sealed class PaginationEndpointsTests : IClassFixture<AuthApiFactory>
         var body = (await response.Content.ReadFromJsonAsync<ApiResponse<List<object>>>())!;
         body.Data!.Should().BeEmpty();
         ReadMeta(body).Total.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetClasses_ReturnsPageMeta_AndHonoursPageSize()
+    {
+        var admin = await AuthenticatedClientAsync("admin@lms.test", "Admin@12345");
+
+        var response = await admin.GetAsync("/api/v1/classes?page=1&pageSize=1");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = (await response.Content.ReadFromJsonAsync<ApiResponse<List<ClassSummaryDto>>>())!;
+        body.Data!.Should().HaveCountLessThanOrEqualTo(1);
+
+        var meta = ReadMeta(body);
+        meta.Page.Should().Be(1);
+        meta.PageSize.Should().Be(1);
+        meta.Total.Should().BeGreaterThan(0, "the seeded database holds at least one class");
+        meta.TotalPages.Should().Be(meta.Total);
+    }
+
+    [Fact]
+    public async Task GetClasses_ClampsOutOfRangePagingParameters()
+    {
+        var admin = await AuthenticatedClientAsync("admin@lms.test", "Admin@12345");
+
+        var response = await admin.GetAsync("/api/v1/classes?page=0&pageSize=100000");
+
+        var meta = ReadMeta((await response.Content.ReadFromJsonAsync<ApiResponse<List<ClassSummaryDto>>>())!);
+        meta.Page.Should().Be(1);
+        meta.PageSize.Should().Be(PageQuery.MaxPageSize);
+    }
+
+    [Fact]
+    public async Task GetSubjects_ReturnsPageMeta_AndHonoursPageSize()
+    {
+        var admin = await AuthenticatedClientAsync("admin@lms.test", "Admin@12345");
+
+        var response = await admin.GetAsync("/api/v1/subjects?page=1&pageSize=1");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = (await response.Content.ReadFromJsonAsync<ApiResponse<List<SubjectSummaryDto>>>())!;
+        body.Data!.Should().HaveCountLessThanOrEqualTo(1);
+
+        var meta = ReadMeta(body);
+        meta.Page.Should().Be(1);
+        meta.PageSize.Should().Be(1);
+        meta.Total.Should().BeGreaterThan(0, "the seeded database holds at least one subject");
+    }
+
+    [Fact]
+    public async Task GetSubjects_SecondPageDoesNotRepeatTheFirst()
+    {
+        var admin = await AuthenticatedClientAsync("admin@lms.test", "Admin@12345");
+
+        var firstPage = (await (await admin.GetAsync("/api/v1/subjects?page=1&pageSize=1"))
+            .Content.ReadFromJsonAsync<ApiResponse<List<SubjectSummaryDto>>>())!;
+
+        if (ReadMeta(firstPage).Total < 2)
+        {
+            return; // Nothing to compare against on a single-subject seed.
+        }
+
+        var secondPage = (await (await admin.GetAsync("/api/v1/subjects?page=2&pageSize=1"))
+            .Content.ReadFromJsonAsync<ApiResponse<List<SubjectSummaryDto>>>())!;
+
+        secondPage.Data!.Should().ContainSingle();
+        secondPage.Data![0].Id.Should().NotBe(firstPage.Data![0].Id);
+    }
+
+    [Fact]
+    public async Task GetClasses_IsReadableByAStudent()
+    {
+        // The endpoint stayed open to every authenticated role when paging was added.
+        var student = await AuthenticatedClientAsync("student@lms.test", "Student@12345");
+
+        var response = await student.GetAsync("/api/v1/classes?pageSize=5");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

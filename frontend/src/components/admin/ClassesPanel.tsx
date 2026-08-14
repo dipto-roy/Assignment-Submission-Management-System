@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { createClass, deleteClass, getClasses } from "@/lib/api/admin";
+import { useState, type FormEvent } from "react";
+import { createClass, deleteClass, getClassesPage } from "@/lib/api/admin";
+import { usePagedList } from "@/lib/hooks/usePagedList";
+import { Pagination } from "@/components/ui/Pagination";
 import type { SchoolClass } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -15,38 +17,45 @@ import {
 import { compactInputClass, dividedListClass } from "@/components/ui/styles";
 
 export function ClassesPanel() {
-  const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [name, setName] = useState("");
   const [section, setSection] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const reload = () => getClasses().then(setClasses).catch((e) => setError(e.message));
+  const {
+    items: classes,
+    meta,
+    isLoading,
+    isRefreshing,
+    error: loadError,
+    setPage,
+    setPageSize,
+    reload,
+  } = usePagedList<SchoolClass>((params) => getClassesPage(params), {
+    errorMessage: "Failed to load classes.",
+  });
 
-  useEffect(() => {
-    reload().finally(() => setIsLoading(false));
-  }, []);
+  const error = formError ?? loadError;
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null);
+    setFormError(null);
     try {
       await createClass({ name, section: section || null });
       setName("");
       setSection("");
-      await reload();
+      reload();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create class.");
+      setFormError(e instanceof Error ? e.message : "Failed to create class.");
     }
   };
 
   const handleDelete = async (id: string) => {
-    setError(null);
+    setFormError(null);
     try {
       await deleteClass(id);
-      await reload();
+      reload();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to delete class.");
+      setFormError(e instanceof Error ? e.message : "Failed to delete class.");
     }
   };
 
@@ -56,7 +65,7 @@ export function ClassesPanel() {
         icon="users"
         title="Classes"
         description="The groups students belong to. A class holds subjects and enrollment."
-        meta={classes.length > 0 ? <Badge tone="primary">{classes.length}</Badge> : undefined}
+        meta={meta.total > 0 ? <Badge tone="primary">{meta.total}</Badge> : undefined}
       />
 
       <form onSubmit={handleCreate} className="mb-5 flex flex-wrap items-end gap-2">
@@ -91,6 +100,7 @@ export function ClassesPanel() {
           description="Create a class before adding students or subjects."
         />
       ) : (
+        <>
         <ul className={dividedListClass}>
           {classes.map((c) => (
             <li
@@ -118,6 +128,15 @@ export function ClassesPanel() {
             </li>
           ))}
         </ul>
+
+        <Pagination
+          meta={meta}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          label="classes"
+          isBusy={isRefreshing}
+        />
+        </>
       )}
     </section>
   );
